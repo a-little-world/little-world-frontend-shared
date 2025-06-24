@@ -1,19 +1,18 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
+// Core exports
+export { translations } from './translations';
+export * from './constants';
 
-const root = ReactDOM.createRoot(
-  document.getElementById('root') as HTMLElement
-);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+// Component exports (when components are added)
+// export * from './components';
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+// Hook exports (when hooks are added)
+// export * from './hooks';
+
+// Type exports (when types are added)
+// export * from './types';
+
+// Utility exports (when utils are added)
+// export * from './utils';
+
+// API exports (when API functions are added)
+// export * from './api';
