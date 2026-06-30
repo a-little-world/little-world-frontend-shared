@@ -37,6 +37,7 @@ export type ThemeFieldRendererProps = {
   preview?: boolean;
   editMode?: boolean;
   onFormEditDeleteField?: (fieldUuid: string) => void;
+  onFormEditUpdateField?: (fieldUuid: string) => void;
 };
 
 export type ThemeFieldRenderer = (props: ThemeFieldRendererProps) => ReactElement;
@@ -257,6 +258,17 @@ const EditModeDeleteButton = styled.button`
   border: 1px solid #efc6c6;
   background: #fff3f3;
   color: #8d1f1f;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+`;
+
+const EditModeUpdateButton = styled.button`
+  border: 1px solid #d9d6f8;
+  background: #f5f4ff;
+  color: #4531a5;
   border-radius: 999px;
   padding: 2px 8px;
   font-size: 11px;
@@ -788,6 +800,15 @@ export const renderFieldForTheme = (themeId: string, props: ThemeFieldRendererPr
   return (
     <EditModeFieldShell>
       <EditModeActionRow>
+        {props.onFormEditUpdateField ? (
+          <EditModeUpdateButton
+            type="button"
+            onClick={() => props.onFormEditUpdateField?.(props.fieldUuid)}
+            title="Update field"
+          >
+            update
+          </EditModeUpdateButton>
+        ) : null}
         <EditModeDeleteButton
           type="button"
           onClick={() => props.onFormEditDeleteField?.(props.fieldUuid)}
