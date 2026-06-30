@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type DragEvent, type ReactElement } from 'react';
 import styled from 'styled-components';
 
 import { getResolvedThemeId, renderFieldForTheme, type FormFieldValue } from './themeRegistry';
@@ -81,6 +81,8 @@ export type LittleWorldDynamicFormRendererProps = {
   onChangeFieldValue?: (fieldUuid: string, nextValue: FormFieldValue, context: LittleWorldFieldContext) => void;
   onEditDeleteField?: (fieldUuid: string, context: LittleWorldFieldContext) => void;
   onEditUpdateField?: (fieldUuid: string, context: LittleWorldFieldContext) => void;
+  onRequestFieldDebug?: (fieldUuid: string, context: LittleWorldFieldContext) => void;
+  onEditReorderFields?: (sectionUuid: string, orderedFieldUuids: string[]) => void;
   onRequestSectionDebug?: (section: LittleWorldFormJsonSection) => void;
   onValidationStateChange?: (payload: {
     isValid: boolean;
@@ -137,6 +139,57 @@ const FieldError = styled.div`
   color: #b42318;
   font-size: 12px;
   line-height: 18px;
+`;
+
+const EditModeBanner = styled.div`
+  margin-top: 16px;
+  border: 1px solid #d6d0ff;
+  background: #f7f6ff;
+  color: #3d3279;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+`;
+
+const EditFieldCard = styled.div<{ $dragging: boolean; $dropTarget: boolean }>`
+  border: 1px solid ${({ $dropTarget }) => ($dropTarget ? '#9078ff' : '#d7d7df')};
+  background: ${({ $dropTarget }) => ($dropTarget ? '#f6f4ff' : '#fcfcfe')};
+  border-radius: 12px;
+  padding: 10px;
+  opacity: ${({ $dragging }) => ($dragging ? 0.45 : 1)};
+`;
+
+const EditActionRow = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+`;
+
+const EditIconButton = styled.button`
+  border: 1px solid #d8d8dd;
+  background: #ffffff;
+  color: #3a3a3f;
+  border-radius: 999px;
+  width: 26px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+`;
+
+const DragHandleButton = styled(EditIconButton)`
+  cursor: grab;
+  letter-spacing: -1px;
+
+  &:active {
+    cursor: grabbing;
+  }
 `;
 
 const normalizeValueForField = (field: LittleWorldFormJsonField, raw: FormFieldValue | undefined): FormFieldValue => {
@@ -314,11 +367,16 @@ export default function LittleWorldDynamicFormRenderer({
   onChangeFieldValue,
   onEditDeleteField,
   onEditUpdateField,
+  onRequestFieldDebug,
+  onEditReorderFields,
   onRequestSectionDebug,
   onValidationStateChange,
   renderSectionFields,
   emptyState,
 }: LittleWorldDynamicFormRendererProps): ReactElement {
+  const [draggedFieldUuid, setDraggedFieldUuid] = useState<string | null>(null);
+  const [dropTargetFieldUuid, setDropTargetFieldUuid] = useState<string | null>(null);
+  const [dragSectionUuid, setDragSectionUuid] = useState<string | null>(null);
   const activeThemeId = getResolvedThemeId(documentJson?.document.theme);
   const normalizedSectionSelector = sectionSelector?.trim();
 
@@ -402,6 +460,11 @@ export default function LittleWorldDynamicFormRenderer({
 
   return (
     <>
+      {editMode && !preview ? (
+        <EditModeBanner>
+          Edit view enabled. Drag fields by handle (::), use i to inspect JSON, * to toggle required, and x to delete.
+        </EditModeBanner>
+      ) : null}
       {sections.map((section) => {
         const renderField = ({ field, labelOverride, promptOverride }: RenderFieldArgs): ReactElement => {
           const context: LittleWorldFieldContext = {
@@ -413,30 +476,134 @@ export default function LittleWorldDynamicFormRenderer({
           const labelBase = labelOverride ?? resolveFieldLabel(field, language);
           const label = `${labelBase}${field.required ? ' *' : ''}`;
 
+          const onDropOnField = (event: DragEvent<HTMLDivElement>) => {
+            event.preventDefault();
+            if (!onEditReorderFields || !draggedFieldUuid || draggedFieldUuid === field.uuid) {
+              return;
+            }
+            const sourceIndex = section.fields.findIndex((sectionField) => sectionField.uuid === draggedFieldUuid);
+            const targetIndex = section.fields.findIndex((sectionField) => sectionField.uuid === field.uuid);
+            if (sourceIndex < 0 || targetIndex < 0) {
+              return;
+            }
+            const ordered = [...section.fields];
+            const [movedField] = ordered.splice(sourceIndex, 1);
+            if (!movedField) {
+              return;
+            }
+            ordered.splice(targetIndex, 0, movedField);
+            onEditReorderFields(section.uuid, ordered.map((sectionField) => sectionField.uuid));
+            setDraggedFieldUuid(null);
+            setDropTargetFieldUuid(null);
+            setDragSectionUuid(null);
+          };
+
+          const rendered = renderFieldForTheme(activeThemeId, {
+            fieldUuid: field.uuid,
+            fieldType: field.type,
+            label,
+            prompt,
+            language,
+            required: Boolean(field.required),
+            value: normalizeValueForField(field, fieldValues[field.uuid]),
+            options: field.options ?? [],
+            preview,
+            disabled: preview,
+            editMode: false,
+            onChange: (nextValue) => onChangeFieldValue?.(field.uuid, nextValue, context),
+          });
+
+          if (!editMode || preview) {
+            return (
+              <div key={field.uuid}>
+                {rendered}
+                {!preview && errorsByField[field.uuid] ? <FieldError>{errorsByField[field.uuid]}</FieldError> : null}
+              </div>
+            );
+          }
+
+          const isDragging = draggedFieldUuid === field.uuid;
+          const isDropTarget = dropTargetFieldUuid === field.uuid;
+          const draggable = Boolean(onEditReorderFields);
+
           return (
-            <div key={field.uuid}>
-              {renderFieldForTheme(activeThemeId, {
-                fieldUuid: field.uuid,
-                fieldType: field.type,
-                label,
-                prompt,
-                language,
-                required: Boolean(field.required),
-                value: normalizeValueForField(field, fieldValues[field.uuid]),
-                options: field.options ?? [],
-                preview,
-                disabled: preview,
-                editMode,
-                onFormEditDeleteField: onEditDeleteField
-                  ? (fieldUuid) => onEditDeleteField(fieldUuid, context)
-                  : undefined,
-                onFormEditUpdateField: onEditUpdateField
-                  ? (fieldUuid) => onEditUpdateField(fieldUuid, context)
-                  : undefined,
-                onChange: (nextValue) => onChangeFieldValue?.(field.uuid, nextValue, context),
-              })}
-              {!preview && errorsByField[field.uuid] ? <FieldError>{errorsByField[field.uuid]}</FieldError> : null}
-            </div>
+            <EditFieldCard
+              key={field.uuid}
+              $dragging={isDragging}
+              $dropTarget={isDropTarget}
+              draggable={draggable}
+              onDragStart={(event) => {
+                if (!draggable) {
+                  return;
+                }
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', field.uuid);
+                setDraggedFieldUuid(field.uuid);
+                setDragSectionUuid(section.uuid);
+              }}
+              onDragOver={(event) => {
+                if (!draggable || dragSectionUuid !== section.uuid) {
+                  return;
+                }
+                event.preventDefault();
+                setDropTargetFieldUuid(field.uuid);
+              }}
+              onDragLeave={() => {
+                if (dropTargetFieldUuid === field.uuid) {
+                  setDropTargetFieldUuid(null);
+                }
+              }}
+              onDrop={onDropOnField}
+              onDragEnd={() => {
+                setDraggedFieldUuid(null);
+                setDropTargetFieldUuid(null);
+                setDragSectionUuid(null);
+              }}
+            >
+              <EditActionRow>
+                {onRequestFieldDebug ? (
+                  <EditIconButton
+                    type="button"
+                    aria-label="Show field JSON"
+                    title="Show field JSON"
+                    onClick={() => onRequestFieldDebug(field.uuid, context)}
+                  >
+                    i
+                  </EditIconButton>
+                ) : null}
+                {onEditUpdateField ? (
+                  <EditIconButton
+                    type="button"
+                    aria-label="Toggle required"
+                    title="Toggle required"
+                    onClick={() => onEditUpdateField(field.uuid, context)}
+                  >
+                    *
+                  </EditIconButton>
+                ) : null}
+                {onEditDeleteField ? (
+                  <EditIconButton
+                    type="button"
+                    aria-label="Delete field"
+                    title="Delete field"
+                    onClick={() => onEditDeleteField(field.uuid, context)}
+                  >
+                    x
+                  </EditIconButton>
+                ) : null}
+                {draggable ? (
+                  <DragHandleButton
+                    type="button"
+                    aria-label="Drag to reorder"
+                    title="Drag to reorder"
+                  >
+                    ::
+                  </DragHandleButton>
+                ) : null}
+              </EditActionRow>
+              {rendered}
+              {errorsByField[field.uuid] ? <FieldError>{errorsByField[field.uuid]}</FieldError> : null}
+            </EditFieldCard>
           );
         };
 
