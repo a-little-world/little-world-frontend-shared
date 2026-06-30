@@ -35,6 +35,8 @@ export type ThemeFieldRendererProps = {
   onChange: (nextValue: FormFieldValue) => void;
   disabled?: boolean;
   preview?: boolean;
+  editMode?: boolean;
+  onFormEditDeleteField?: (fieldUuid: string) => void;
 };
 
 export type ThemeFieldRenderer = (props: ThemeFieldRendererProps) => ReactElement;
@@ -56,20 +58,124 @@ const CheckItem = styled.label`
   gap: 0.45rem;
 `;
 
-const EsfFieldShell = styled.div`
-  padding: 10px 12px;
-  border: 1px solid #f2d5c0;
-  border-radius: 10px;
-  background: #fffaf6;
-`;
-
 const EsfFieldLabel = styled.div`
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.5px;
-  color: #8b4a25;
-  margin-bottom: 6px;
+  letter-spacing: 0.35px;
+  color: #6b6b6b;
+  margin-bottom: 8px;
   text-transform: uppercase;
+`;
+
+const EsfFieldShell = styled.div`
+  display: grid;
+  gap: 8px;
+`;
+
+const EsfTextInput = styled.input`
+  width: 100%;
+  height: 49px;
+  border: 0.625px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-size: 16px;
+  line-height: 1.3;
+  color: #1b1c1c;
+  background: #ffffff;
+
+  &:focus {
+    outline: 2px solid #ffd5be;
+    border-color: #d85509;
+  }
+
+  &:disabled {
+    background: #f6f6f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+  }
+`;
+
+const EsfSelect = styled.select`
+  width: 100%;
+  height: 49px;
+  border: 0.625px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-size: 16px;
+  line-height: 1.3;
+  color: #1b1c1c;
+  background: #ffffff;
+
+  &:focus {
+    outline: 2px solid #ffd5be;
+    border-color: #d85509;
+  }
+
+  &:disabled {
+    background: #f6f6f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+  }
+`;
+
+const EsfTextarea = styled.textarea`
+  width: 100%;
+  min-height: 96px;
+  border: 0.625px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-size: 16px;
+  line-height: 1.35;
+  color: #1b1c1c;
+  background: #ffffff;
+  resize: vertical;
+
+  &:focus {
+    outline: 2px solid #ffd5be;
+    border-color: #d85509;
+  }
+
+  &:disabled {
+    background: #f6f6f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+  }
+`;
+
+const EsfOptionGrid = styled.div`
+  display: grid;
+  gap: 12px;
+
+  @media (min-width: 960px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+`;
+
+const EsfOptionCard = styled.button<{ $active: boolean }>`
+  border: 1.875px solid ${({ $active }) => ($active ? '#d85509' : '#e0e0e0')};
+  background: ${({ $active }) => ($active ? '#d85509' : '#ffffff')};
+  color: ${({ $active }) => ($active ? '#ffffff' : '#0f172a')};
+  border-radius: 4px;
+  min-height: 56px;
+  padding: 12px 14px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+`;
+
+const EsfCheckboxRow = styled.label`
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: #1b1c1c;
 `;
 
 const InfoHintCard = styled.div`
@@ -135,6 +241,27 @@ const PreviewFieldValue = styled.div`
   font-size: 15px;
   line-height: 22px;
   color: #1b1c1c;
+`;
+
+const EditModeFieldShell = styled.div`
+  display: grid;
+  gap: 6px;
+`;
+
+const EditModeActionRow = styled.div`
+  display: flex;
+  justify-content: flex-end;
+`;
+
+const EditModeDeleteButton = styled.button`
+  border: 1px solid #efc6c6;
+  background: #fff3f3;
+  color: #8d1f1f;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
 `;
 
 const formatPreviewValue = (value: FormFieldValue): string => {
@@ -414,12 +541,199 @@ const DEFAULT_FIELD_RENDERERS: Record<FormFieldKind, ThemeFieldRenderer> = {
   },
 };
 
-const esfWrap = (renderer: ThemeFieldRenderer): ThemeFieldRenderer => (props) => (
-  <EsfFieldShell>
-    <EsfFieldLabel>{props.label}</EsfFieldLabel>
-    {renderer({ ...props, label: props.prompt })}
-  </EsfFieldShell>
-);
+const renderEsfField = (props: ThemeFieldRendererProps, child: ReactElement): ReactElement => {
+  if (props.preview) {
+    return child;
+  }
+  return (
+    <EsfFieldShell>
+      <EsfFieldLabel>{props.label}</EsfFieldLabel>
+      {child}
+    </EsfFieldShell>
+  );
+};
+
+const ESF_FIELD_RENDERERS: Partial<Record<FormFieldKind, ThemeFieldRenderer>> = {
+  label: DEFAULT_FIELD_RENDERERS.label,
+  text: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderEsfField(
+      props,
+      <EsfTextInput
+        id={props.fieldUuid}
+        type="text"
+        disabled={props.disabled}
+        value={typeof props.value === 'string' ? props.value : ''}
+        onChange={(event) => props.onChange(event.target.value)}
+      />,
+    );
+  },
+  date: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderEsfField(
+      props,
+      <EsfTextInput
+        id={props.fieldUuid}
+        type="date"
+        disabled={props.disabled}
+        value={typeof props.value === 'string' ? props.value : ''}
+        onChange={(event) => props.onChange(event.target.value)}
+      />,
+    );
+  },
+  number: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderEsfField(
+      props,
+      <EsfTextInput
+        id={props.fieldUuid}
+        type="number"
+        disabled={props.disabled}
+        value={typeof props.value === 'string' ? props.value : ''}
+        onChange={(event) => props.onChange(event.target.value)}
+      />,
+    );
+  },
+  tel: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderEsfField(
+      props,
+      <EsfTextInput
+        id={props.fieldUuid}
+        type="tel"
+        disabled={props.disabled}
+        value={typeof props.value === 'string' ? props.value : ''}
+        onChange={(event) => props.onChange(event.target.value)}
+      />,
+    );
+  },
+  email: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderEsfField(
+      props,
+      <EsfTextInput
+        id={props.fieldUuid}
+        type="email"
+        disabled={props.disabled}
+        value={typeof props.value === 'string' ? props.value : ''}
+        onChange={(event) => props.onChange(event.target.value)}
+      />,
+    );
+  },
+  textarea: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderEsfField(
+      props,
+      <EsfTextarea
+        id={props.fieldUuid}
+        disabled={props.disabled}
+        value={typeof props.value === 'string' ? props.value : ''}
+        onChange={(event) => props.onChange(event.target.value)}
+      />,
+    );
+  },
+  select: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderEsfField(
+      props,
+      <EsfSelect
+        disabled={props.disabled}
+        value={typeof props.value === 'string' ? props.value : ''}
+        onChange={(event) => props.onChange(event.target.value)}
+      >
+        <option value="">Select...</option>
+        {props.options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {resolveOptionLabel(option, props.language)}
+          </option>
+        ))}
+      </EsfSelect>,
+    );
+  },
+  radio: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderEsfField(
+      props,
+      <EsfOptionGrid>
+        {props.options.map((option) => {
+          const optionValue = option.value;
+          const selected = String(props.value ?? '') === optionValue;
+          return (
+            <EsfOptionCard
+              key={`${props.fieldUuid}-${optionValue}`}
+              type="button"
+              $active={selected}
+              disabled={props.disabled}
+              onClick={() => props.onChange(optionValue)}
+            >
+              {resolveOptionLabel(option, props.language)}
+            </EsfOptionCard>
+          );
+        })}
+      </EsfOptionGrid>,
+    );
+  },
+  checkbox_group: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    const selectedValues = Array.isArray(props.value) ? props.value : [];
+    return renderEsfField(
+      props,
+      <CheckList>
+        {props.options.map((option) => (
+          <EsfCheckboxRow key={option.value}>
+            <input
+              type="checkbox"
+              disabled={props.disabled}
+              checked={selectedValues.includes(option.value)}
+              onChange={(event) => {
+                const next = event.target.checked
+                  ? [...selectedValues, option.value]
+                  : selectedValues.filter((entry) => entry !== option.value);
+                props.onChange(next);
+              }}
+            />
+            <span>{resolveOptionLabel(option, props.language)}</span>
+          </EsfCheckboxRow>
+        ))}
+      </CheckList>,
+    );
+  },
+  checkbox: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderEsfField(
+      props,
+      <EsfCheckboxRow>
+        <input
+          type="checkbox"
+          disabled={props.disabled}
+          checked={Boolean(props.value)}
+          onChange={(event) => props.onChange(event.target.checked)}
+        />
+        <span>{props.prompt}</span>
+      </EsfCheckboxRow>,
+    );
+  },
+};
 
 const DEFAULT_THEME: FormThemeDefinition = {
   id: 'default',
@@ -429,17 +743,7 @@ const DEFAULT_THEME: FormThemeDefinition = {
 const ESF_THEME: FormThemeDefinition = {
   id: 'esf',
   fieldRenderers: {
-    label: DEFAULT_FIELD_RENDERERS.label,
-    text: esfWrap(DEFAULT_FIELD_RENDERERS.text),
-    date: esfWrap(DEFAULT_FIELD_RENDERERS.date),
-    radio: esfWrap(DEFAULT_FIELD_RENDERERS.radio),
-    checkbox_group: esfWrap(DEFAULT_FIELD_RENDERERS.checkbox_group),
-    checkbox: esfWrap(DEFAULT_FIELD_RENDERERS.checkbox),
-    select: esfWrap(DEFAULT_FIELD_RENDERERS.select),
-    textarea: esfWrap(DEFAULT_FIELD_RENDERERS.textarea),
-    number: esfWrap(DEFAULT_FIELD_RENDERERS.number),
-    tel: esfWrap(DEFAULT_FIELD_RENDERERS.tel),
-    email: esfWrap(DEFAULT_FIELD_RENDERERS.email),
+    ...ESF_FIELD_RENDERERS,
   },
 };
 
@@ -477,5 +781,22 @@ export const renderFieldForTheme = (themeId: string, props: ThemeFieldRendererPr
     theme.fieldRenderers[kind]
     ?? DEFAULT_THEME.fieldRenderers[kind]
     ?? DEFAULT_FIELD_RENDERERS.text;
-  return renderer(props);
+  const renderedField = renderer(props);
+  if (!props.editMode || props.preview) {
+    return renderedField;
+  }
+  return (
+    <EditModeFieldShell>
+      <EditModeActionRow>
+        <EditModeDeleteButton
+          type="button"
+          onClick={() => props.onFormEditDeleteField?.(props.fieldUuid)}
+          title="Delete field"
+        >
+          delete
+        </EditModeDeleteButton>
+      </EditModeActionRow>
+      {renderedField}
+    </EditModeFieldShell>
+  );
 };
