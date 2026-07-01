@@ -106,11 +106,18 @@ type RenderFieldArgs = {
   promptOverride?: string;
 };
 
+type RenderInsertSlotArgs = {
+  section: LittleWorldFormJsonSection;
+  beforeField: LittleWorldFormJsonField | null;
+  afterField: LittleWorldFormJsonField | null;
+};
+
 type SectionFieldsRendererArgs = {
   section: LittleWorldFormJsonSection;
   fields: LittleWorldFormJsonField[];
   language: string;
   renderField: (args: RenderFieldArgs) => ReactElement;
+  renderInsertSlot: (args: RenderInsertSlotArgs) => ReactElement | null;
 };
 
 export type LittleWorldDynamicFormRendererProps = {
@@ -138,6 +145,7 @@ export type LittleWorldDynamicFormRendererProps = {
   onFormFieldSectionValidationComplete?: (payload: LittleWorldFormSectionValidationPayload) => void;
   renderFieldEditActions?: (args: LittleWorldFieldDecorationArgs) => ReactElement | null;
   renderFieldOverlay?: (args: LittleWorldFieldDecorationArgs) => ReactElement | null;
+  renderFieldInsertionSlot?: (args: RenderInsertSlotArgs) => ReactElement | null;
   renderSectionFields?: (args: SectionFieldsRendererArgs) => ReactElement;
   emptyState?: ReactElement;
 };
@@ -201,40 +209,56 @@ const EditModeBanner = styled.div`
   font-weight: 600;
 `;
 
-const EditFieldCard = styled.div<{ $dragging: boolean; $dropTarget: boolean }>`
-  border: 1px solid ${({ $dropTarget }) => ($dropTarget ? '#9078ff' : '#d7d7df')};
-  background: ${({ $dropTarget }) => ($dropTarget ? '#f6f4ff' : '#fcfcfe')};
+const EditFieldCard = styled.div<{ $dragging: boolean; $dropTarget: boolean; $flash: boolean }>`
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid ${({ $flash, $dropTarget }) => ($flash ? '#e49b28' : $dropTarget ? '#9078ff' : '#d7d7df')};
+  background: ${({ $flash, $dropTarget }) => ($flash ? '#fff7e8' : $dropTarget ? '#f6f4ff' : '#fcfcfe')};
   border-radius: 12px;
   padding: 10px;
   opacity: ${({ $dragging }) => ($dragging ? 0.45 : 1)};
+  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+  box-shadow: ${({ $flash }) => ($flash ? '0 0 0 2px rgba(228, 155, 40, 0.25)' : 'none')};
 `;
 
 const EditActionRow = styled.div`
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 8px;
 `;
 
-const EditIconButton = styled.button`
+const EditActionButton = styled.button<{ $requiredActive?: boolean }>`
   border: 1px solid #d8d8dd;
   background: #ffffff;
   color: #3a3a3f;
   border-radius: 999px;
-  width: 26px;
-  height: 22px;
+  min-height: 22px;
+  padding: 0 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.02em;
   font-weight: 700;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+  color: ${({ $requiredActive }) => ($requiredActive ? '#185f2f' : '#3a3a3f')};
+  border-color: ${({ $requiredActive }) => ($requiredActive ? '#9fd7ae' : '#d8d8dd')};
+  background: ${({ $requiredActive }) => ($requiredActive ? '#edf9f0' : '#ffffff')};
+
+  &:hover {
+    border-color: ${({ $requiredActive }) => ($requiredActive ? '#7cbc90' : '#b9b9c1')};
+    background: ${({ $requiredActive }) => ($requiredActive ? '#e4f4e9' : '#f8f8fb')};
+  }
 `;
 
-const DragHandleButton = styled(EditIconButton)`
+const DragHandleButton = styled(EditActionButton)`
   cursor: grab;
-  letter-spacing: -1px;
 
   &:active {
     cursor: grabbing;
@@ -243,6 +267,17 @@ const DragHandleButton = styled(EditIconButton)`
 
 const FieldRenderShell = styled.div`
   position: relative;
+  width: 100%;
+  min-width: 0;
+`;
+
+const EditFieldContent = styled.div`
+  width: 100%;
+  min-width: 0;
+
+  & > * {
+    max-width: 100%;
+  }
 `;
 
 const FieldOverlayLayer = styled.div`
@@ -444,12 +479,15 @@ const LittleWorldDynamicFormRenderer = forwardRef<
   onFormFieldSectionValidationComplete,
   renderFieldEditActions,
   renderFieldOverlay,
+  renderFieldInsertionSlot,
   renderSectionFields,
   emptyState,
 }, ref): ReactElement {
   const [draggedFieldUuid, setDraggedFieldUuid] = useState<string | null>(null);
   const [dropTargetFieldUuid, setDropTargetFieldUuid] = useState<string | null>(null);
   const [dragSectionUuid, setDragSectionUuid] = useState<string | null>(null);
+  const [recentlyDroppedFieldUuids, setRecentlyDroppedFieldUuids] = useState<string[]>([]);
+  const dropFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previousFieldValidityRef = useRef<Record<string, boolean>>({});
   const previousSectionCompletionRef = useRef<Record<string, boolean>>({});
   const validationSnapshotRef = useRef<ValidationSnapshot>({
@@ -684,6 +722,14 @@ const LittleWorldDynamicFormRenderer = forwardRef<
     sectionValidationPayloads,
   ]);
 
+  useEffect(() => {
+    return () => {
+      if (dropFlashTimerRef.current) {
+        clearTimeout(dropFlashTimerRef.current);
+      }
+    };
+  }, []);
+
   if (!documentJson || sections.length === 0) {
     return emptyState ?? <></>;
   }
@@ -692,7 +738,7 @@ const LittleWorldDynamicFormRenderer = forwardRef<
     <>
       {editMode && !preview ? (
         <EditModeBanner>
-          Edit view enabled. Drag fields by handle (::), use i to inspect JSON, * to toggle required, and x to delete.
+          Edit view enabled. Drag fields by handle, use json to inspect, required to toggle, and delete to remove.
         </EditModeBanner>
       ) : null}
       {sections.map((section) => {
@@ -711,6 +757,7 @@ const LittleWorldDynamicFormRenderer = forwardRef<
             if (!onEditReorderFields || !draggedFieldUuid || draggedFieldUuid === field.uuid) {
               return;
             }
+            const sourceFieldUuid = draggedFieldUuid;
             const sourceIndex = section.fields.findIndex((sectionField) => sectionField.uuid === draggedFieldUuid);
             const targetIndex = section.fields.findIndex((sectionField) => sectionField.uuid === field.uuid);
             if (sourceIndex < 0 || targetIndex < 0) {
@@ -723,6 +770,13 @@ const LittleWorldDynamicFormRenderer = forwardRef<
             }
             ordered.splice(targetIndex, 0, movedField);
             onEditReorderFields(section.uuid, ordered.map((sectionField) => sectionField.uuid));
+            setRecentlyDroppedFieldUuids([sourceFieldUuid, field.uuid]);
+            if (dropFlashTimerRef.current) {
+              clearTimeout(dropFlashTimerRef.current);
+            }
+            dropFlashTimerRef.current = setTimeout(() => {
+              setRecentlyDroppedFieldUuids([]);
+            }, 900);
             setDraggedFieldUuid(null);
             setDropTargetFieldUuid(null);
             setDragSectionUuid(null);
@@ -775,6 +829,7 @@ const LittleWorldDynamicFormRenderer = forwardRef<
               key={field.uuid}
               $dragging={isDragging}
               $dropTarget={isDropTarget}
+              $flash={recentlyDroppedFieldUuids.includes(field.uuid)}
               draggable={draggable}
               onDragStart={(event) => {
                 if (!draggable) {
@@ -806,34 +861,35 @@ const LittleWorldDynamicFormRenderer = forwardRef<
             >
               <EditActionRow>
                 {onRequestFieldDebug ? (
-                  <EditIconButton
+                  <EditActionButton
                     type="button"
                     aria-label="Show field JSON"
                     title="Show field JSON"
                     onClick={() => onRequestFieldDebug(field.uuid, context)}
                   >
-                    i
-                  </EditIconButton>
+                    json
+                  </EditActionButton>
                 ) : null}
                 {onEditUpdateField ? (
-                  <EditIconButton
+                  <EditActionButton
                     type="button"
                     aria-label="Toggle required"
                     title="Toggle required"
+                    $requiredActive={Boolean(field.required)}
                     onClick={() => onEditUpdateField(field.uuid, context)}
                   >
-                    *
-                  </EditIconButton>
+                    required
+                  </EditActionButton>
                 ) : null}
                 {onEditDeleteField ? (
-                  <EditIconButton
+                  <EditActionButton
                     type="button"
                     aria-label="Delete field"
                     title="Delete field"
                     onClick={() => onEditDeleteField(field.uuid, context)}
                   >
-                    x
-                  </EditIconButton>
+                    delete
+                  </EditActionButton>
                 ) : null}
                 {renderFieldEditActions ? renderFieldEditActions(decorationArgs) : null}
                 {draggable ? (
@@ -842,14 +898,51 @@ const LittleWorldDynamicFormRenderer = forwardRef<
                     aria-label="Drag to reorder"
                     title="Drag to reorder"
                   >
-                    ::
+                    move
                   </DragHandleButton>
                 ) : null}
               </EditActionRow>
-              {renderedWithOverlay}
+              <EditFieldContent>{renderedWithOverlay}</EditFieldContent>
               {errorsByField[field.uuid] ? <FieldError>{errorsByField[field.uuid]}</FieldError> : null}
             </EditFieldCard>
           );
+        };
+
+        const renderInsertSlot = ({
+          beforeField,
+          afterField,
+        }: {
+          beforeField: LittleWorldFormJsonField | null;
+          afterField: LittleWorldFormJsonField | null;
+        }): ReactElement | null => {
+          if (!editMode || preview || !renderFieldInsertionSlot) {
+            return null;
+          }
+          return renderFieldInsertionSlot({
+            section,
+            beforeField,
+            afterField,
+          });
+        };
+
+        const renderDefaultFields = (): ReactElement => {
+          const fieldNodes: ReactElement[] = [];
+          for (const [index, field] of section.fields.entries()) {
+            const beforeField = index > 0 ? section.fields[index - 1] : null;
+            fieldNodes.push(
+              <div key={`insert-before-${field.uuid}`}>
+                {renderInsertSlot({ beforeField, afterField: field })}
+              </div>,
+            );
+            fieldNodes.push(renderField({ field }));
+          }
+          const lastField = section.fields.length > 0 ? section.fields[section.fields.length - 1] : null;
+          fieldNodes.push(
+            <div key="insert-after-last">
+              {renderInsertSlot({ beforeField: lastField, afterField: null })}
+            </div>,
+          );
+          return <>{fieldNodes}</>;
         };
 
         return (
@@ -870,8 +963,9 @@ const LittleWorldDynamicFormRenderer = forwardRef<
                   fields: section.fields,
                   language,
                   renderField,
+                  renderInsertSlot,
                 })
-                : section.fields.map((field) => renderField({ field }))}
+                : renderDefaultFields()}
             </FieldStack>
           </SectionBlock>
         );
