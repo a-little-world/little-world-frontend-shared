@@ -5,6 +5,8 @@ export type {
   LittleWorldFormSectionValidationPayload,
   LittleWorldDynamicFormRendererHandle,
   LittleWorldFieldDecorationArgs,
+  LittleWorldFieldInsertPlacement,
+  LittleWorldFieldReorderDropPayload,
   LittleWorldDynamicFormRendererProps,
   LittleWorldFieldContext,
   LittleWorldFormJson,

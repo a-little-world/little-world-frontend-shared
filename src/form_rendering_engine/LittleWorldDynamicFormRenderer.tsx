@@ -106,10 +106,24 @@ type RenderFieldArgs = {
   promptOverride?: string;
 };
 
+export type LittleWorldFieldInsertPlacement = 'full' | 'left' | 'right';
+
 type RenderInsertSlotArgs = {
   section: LittleWorldFormJsonSection;
   beforeField: LittleWorldFormJsonField | null;
   afterField: LittleWorldFormJsonField | null;
+  placement: LittleWorldFieldInsertPlacement;
+  anchorField: LittleWorldFormJsonField | null;
+  isDropTarget: boolean;
+  isDragActive: boolean;
+};
+
+export type LittleWorldFieldReorderDropPayload = {
+  movedFieldUuid: string;
+  beforeFieldUuid: string | null;
+  afterFieldUuid: string | null;
+  placement: LittleWorldFieldInsertPlacement;
+  anchorFieldUuid: string | null;
 };
 
 type SectionFieldsRendererArgs = {
@@ -133,7 +147,11 @@ export type LittleWorldDynamicFormRendererProps = {
   onEditDeleteField?: (fieldUuid: string, context: LittleWorldFieldContext) => void;
   onEditUpdateField?: (fieldUuid: string, context: LittleWorldFieldContext) => void;
   onRequestFieldDebug?: (fieldUuid: string, context: LittleWorldFieldContext) => void;
-  onEditReorderFields?: (sectionUuid: string, orderedFieldUuids: string[]) => void;
+  onEditReorderFields?: (
+    sectionUuid: string,
+    orderedFieldUuids: string[],
+    dropPayload?: LittleWorldFieldReorderDropPayload,
+  ) => void;
   onRequestSectionDebug?: (section: LittleWorldFormJsonSection) => void;
   onValidationStateChange?: (payload: {
     isValid: boolean;
@@ -209,12 +227,12 @@ const EditModeBanner = styled.div`
   font-weight: 600;
 `;
 
-const EditFieldCard = styled.div<{ $dragging: boolean; $dropTarget: boolean; $flash: boolean }>`
+const EditFieldCard = styled.div<{ $dragging: boolean; $flash: boolean }>`
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  border: 1px solid ${({ $flash, $dropTarget }) => ($flash ? '#e49b28' : $dropTarget ? '#9078ff' : '#d7d7df')};
-  background: ${({ $flash, $dropTarget }) => ($flash ? '#fff7e8' : $dropTarget ? '#f6f4ff' : '#fcfcfe')};
+  border: 1px solid ${({ $flash }) => ($flash ? '#e49b28' : '#d7d7df')};
+  background: ${({ $flash }) => ($flash ? '#fff7e8' : '#fcfcfe')};
   border-radius: 12px;
   padding: 10px;
   opacity: ${({ $dragging }) => ($dragging ? 0.45 : 1)};
@@ -484,8 +502,8 @@ const LittleWorldDynamicFormRenderer = forwardRef<
   emptyState,
 }, ref): ReactElement {
   const [draggedFieldUuid, setDraggedFieldUuid] = useState<string | null>(null);
-  const [dropTargetFieldUuid, setDropTargetFieldUuid] = useState<string | null>(null);
   const [dragSectionUuid, setDragSectionUuid] = useState<string | null>(null);
+  const [dropTargetSlotKey, setDropTargetSlotKey] = useState<string | null>(null);
   const [recentlyDroppedFieldUuids, setRecentlyDroppedFieldUuids] = useState<string[]>([]);
   const dropFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previousFieldValidityRef = useRef<Record<string, boolean>>({});
@@ -730,6 +748,81 @@ const LittleWorldDynamicFormRenderer = forwardRef<
     };
   }, []);
 
+  const getDroppedFieldUuid = (event: DragEvent<HTMLDivElement>): string | null => {
+    if (draggedFieldUuid) {
+      return draggedFieldUuid;
+    }
+    const payload = event.dataTransfer.getData('text/plain').trim();
+    return payload || null;
+  };
+
+  const applyInsertionDrop = (
+    section: LittleWorldFormJsonSection,
+    event: DragEvent<HTMLDivElement>,
+    slot: Omit<RenderInsertSlotArgs, 'section'>,
+  ) => {
+    if (!onEditReorderFields) {
+      return;
+    }
+
+    const sourceFieldUuid = getDroppedFieldUuid(event);
+    if (!sourceFieldUuid) {
+      return;
+    }
+
+    const sourceIndex = section.fields.findIndex((field) => field.uuid === sourceFieldUuid);
+    if (sourceIndex < 0) {
+      return;
+    }
+
+    const ordered = [...section.fields];
+    const [movedField] = ordered.splice(sourceIndex, 1);
+    if (!movedField) {
+      return;
+    }
+
+    const beforeIndex = slot.beforeField ? ordered.findIndex((field) => field.uuid === slot.beforeField?.uuid) : -1;
+    const afterIndex = slot.afterField ? ordered.findIndex((field) => field.uuid === slot.afterField?.uuid) : -1;
+
+    let insertIndex = ordered.length;
+    if (afterIndex >= 0) {
+      insertIndex = afterIndex;
+    } else if (beforeIndex >= 0) {
+      insertIndex = beforeIndex + 1;
+    }
+
+    ordered.splice(insertIndex, 0, movedField);
+
+    onEditReorderFields(section.uuid, ordered.map((field) => field.uuid), {
+      movedFieldUuid: sourceFieldUuid,
+      beforeFieldUuid: slot.beforeField?.uuid ?? null,
+      afterFieldUuid: slot.afterField?.uuid ?? null,
+      placement: slot.placement,
+      anchorFieldUuid: slot.anchorField?.uuid ?? null,
+    });
+
+    setRecentlyDroppedFieldUuids([sourceFieldUuid, slot.anchorField?.uuid ?? sourceFieldUuid]);
+    if (dropFlashTimerRef.current) {
+      clearTimeout(dropFlashTimerRef.current);
+    }
+    dropFlashTimerRef.current = setTimeout(() => {
+      setRecentlyDroppedFieldUuids([]);
+    }, 900);
+    setDraggedFieldUuid(null);
+    setDragSectionUuid(null);
+    setDropTargetSlotKey(null);
+  };
+
+  const buildInsertSlotKey = (sectionUuid: string, slot: Omit<RenderInsertSlotArgs, 'section' | 'isDropTarget' | 'isDragActive'>): string => {
+    return [
+      sectionUuid,
+      slot.beforeField?.uuid ?? 'none',
+      slot.afterField?.uuid ?? 'none',
+      slot.placement,
+      slot.anchorField?.uuid ?? 'none',
+    ].join('|');
+  };
+
   if (!documentJson || sections.length === 0) {
     return emptyState ?? <></>;
   }
@@ -738,7 +831,7 @@ const LittleWorldDynamicFormRenderer = forwardRef<
     <>
       {editMode && !preview ? (
         <EditModeBanner>
-          Edit view enabled. Drag fields by handle, use json to inspect, required to toggle, and delete to remove.
+          Edit view enabled. Drag fields by handle, then drop between fields. Use json to inspect, required to toggle, and delete to remove.
         </EditModeBanner>
       ) : null}
       {sections.map((section) => {
@@ -751,36 +844,6 @@ const LittleWorldDynamicFormRenderer = forwardRef<
           const prompt = promptOverride ?? resolveFieldPrompt(field, language);
           const labelBase = labelOverride ?? resolveFieldLabel(field, language);
           const label = `${labelBase}${field.required ? ' *' : ''}`;
-
-          const onDropOnField = (event: DragEvent<HTMLDivElement>) => {
-            event.preventDefault();
-            if (!onEditReorderFields || !draggedFieldUuid || draggedFieldUuid === field.uuid) {
-              return;
-            }
-            const sourceFieldUuid = draggedFieldUuid;
-            const sourceIndex = section.fields.findIndex((sectionField) => sectionField.uuid === draggedFieldUuid);
-            const targetIndex = section.fields.findIndex((sectionField) => sectionField.uuid === field.uuid);
-            if (sourceIndex < 0 || targetIndex < 0) {
-              return;
-            }
-            const ordered = [...section.fields];
-            const [movedField] = ordered.splice(sourceIndex, 1);
-            if (!movedField) {
-              return;
-            }
-            ordered.splice(targetIndex, 0, movedField);
-            onEditReorderFields(section.uuid, ordered.map((sectionField) => sectionField.uuid));
-            setRecentlyDroppedFieldUuids([sourceFieldUuid, field.uuid]);
-            if (dropFlashTimerRef.current) {
-              clearTimeout(dropFlashTimerRef.current);
-            }
-            dropFlashTimerRef.current = setTimeout(() => {
-              setRecentlyDroppedFieldUuids([]);
-            }, 900);
-            setDraggedFieldUuid(null);
-            setDropTargetFieldUuid(null);
-            setDragSectionUuid(null);
-          };
 
           const rendered = renderFieldForTheme(activeThemeId, {
             fieldUuid: field.uuid,
@@ -821,14 +884,12 @@ const LittleWorldDynamicFormRenderer = forwardRef<
           }
 
           const isDragging = draggedFieldUuid === field.uuid;
-          const isDropTarget = dropTargetFieldUuid === field.uuid;
           const draggable = Boolean(onEditReorderFields);
 
           return (
             <EditFieldCard
               key={field.uuid}
               $dragging={isDragging}
-              $dropTarget={isDropTarget}
               $flash={recentlyDroppedFieldUuids.includes(field.uuid)}
               draggable={draggable}
               onDragStart={(event) => {
@@ -844,19 +905,11 @@ const LittleWorldDynamicFormRenderer = forwardRef<
                 if (!draggable || dragSectionUuid !== section.uuid) {
                   return;
                 }
-                event.preventDefault();
-                setDropTargetFieldUuid(field.uuid);
               }}
-              onDragLeave={() => {
-                if (dropTargetFieldUuid === field.uuid) {
-                  setDropTargetFieldUuid(null);
-                }
-              }}
-              onDrop={onDropOnField}
               onDragEnd={() => {
                 setDraggedFieldUuid(null);
-                setDropTargetFieldUuid(null);
                 setDragSectionUuid(null);
+                setDropTargetSlotKey(null);
               }}
             >
               <EditActionRow>
@@ -870,7 +923,7 @@ const LittleWorldDynamicFormRenderer = forwardRef<
                     json
                   </EditActionButton>
                 ) : null}
-                {onEditUpdateField ? (
+                {onEditUpdateField && field.type !== 'label' ? (
                   <EditActionButton
                     type="button"
                     aria-label="Toggle required"
@@ -911,18 +964,81 @@ const LittleWorldDynamicFormRenderer = forwardRef<
         const renderInsertSlot = ({
           beforeField,
           afterField,
+          placement,
+          anchorField,
         }: {
           beforeField: LittleWorldFormJsonField | null;
           afterField: LittleWorldFormJsonField | null;
+          placement: LittleWorldFieldInsertPlacement;
+          anchorField: LittleWorldFormJsonField | null;
         }): ReactElement | null => {
           if (!editMode || preview || !renderFieldInsertionSlot) {
             return null;
           }
-          return renderFieldInsertionSlot({
+          const slotKey = buildInsertSlotKey(section.uuid, {
+            beforeField,
+            afterField,
+            placement,
+            anchorField,
+          });
+          const isDragActive = Boolean(draggedFieldUuid) && dragSectionUuid === section.uuid;
+          const isDropTarget = dropTargetSlotKey === slotKey;
+          const slotNode = renderFieldInsertionSlot({
             section,
             beforeField,
             afterField,
+            placement,
+            anchorField,
+            isDropTarget,
+            isDragActive,
           });
+          if (!slotNode) {
+            return null;
+          }
+
+          if (!onEditReorderFields) {
+            return slotNode;
+          }
+
+          return (
+            <div
+              onDragOver={(event) => {
+                if (dragSectionUuid !== section.uuid) {
+                  return;
+                }
+                event.preventDefault();
+                if (dropTargetSlotKey !== slotKey) {
+                  setDropTargetSlotKey(slotKey);
+                }
+              }}
+              onDragEnter={(event) => {
+                if (dragSectionUuid !== section.uuid) {
+                  return;
+                }
+                event.preventDefault();
+                setDropTargetSlotKey(slotKey);
+              }}
+              onDragLeave={() => {
+                if (dropTargetSlotKey === slotKey) {
+                  setDropTargetSlotKey(null);
+                }
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                if (dragSectionUuid !== section.uuid) {
+                  return;
+                }
+                applyInsertionDrop(section, event, {
+                  beforeField,
+                  afterField,
+                  placement,
+                  anchorField,
+                });
+              }}
+            >
+              {slotNode}
+            </div>
+          );
         };
 
         const renderDefaultFields = (): ReactElement => {
@@ -931,7 +1047,12 @@ const LittleWorldDynamicFormRenderer = forwardRef<
             const beforeField = index > 0 ? section.fields[index - 1] : null;
             fieldNodes.push(
               <div key={`insert-before-${field.uuid}`}>
-                {renderInsertSlot({ beforeField, afterField: field })}
+                {renderInsertSlot({
+                  beforeField,
+                  afterField: field,
+                  placement: 'full',
+                  anchorField: null,
+                })}
               </div>,
             );
             fieldNodes.push(renderField({ field }));
@@ -939,7 +1060,12 @@ const LittleWorldDynamicFormRenderer = forwardRef<
           const lastField = section.fields.length > 0 ? section.fields[section.fields.length - 1] : null;
           fieldNodes.push(
             <div key="insert-after-last">
-              {renderInsertSlot({ beforeField: lastField, afterField: null })}
+              {renderInsertSlot({
+                beforeField: lastField,
+                afterField: null,
+                placement: 'full',
+                anchorField: null,
+              })}
             </div>,
           );
           return <>{fieldNodes}</>;
