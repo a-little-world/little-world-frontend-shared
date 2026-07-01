@@ -1,4 +1,14 @@
-import { useEffect, useMemo, useState, type DragEvent, type ReactElement } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type ReactElement,
+} from 'react';
 import styled from 'styled-components';
 
 import { getResolvedThemeId, renderFieldForTheme, type FormFieldValue } from './themeRegistry';
@@ -56,6 +66,40 @@ export type LittleWorldFieldContext = {
   field: LittleWorldFormJsonField;
 };
 
+export type LittleWorldFormFieldValidationPayload = {
+  sectionId: string;
+  sectionUuid: string;
+  fieldUuid: string;
+  value: FormFieldValue;
+  error: string | null;
+  isValid: boolean;
+};
+
+export type LittleWorldFormSectionValidationPayload = {
+  sectionId: string;
+  sectionUuid: string;
+  isComplete: boolean;
+};
+
+export type LittleWorldDynamicFormRendererHandle = {
+  getFormFieldValue: (fieldUuid: string) => FormFieldValue | undefined;
+  getCurrentFormValues: () => Record<string, FormFieldValue>;
+  setFormFieldValue: (fieldUuid: string, nextValue: FormFieldValue) => boolean;
+  revalidateCurrentForm: () => {
+    isValid: boolean;
+    errorsByField: Record<string, string>;
+    invalidFieldUuids: string[];
+  };
+};
+
+export type LittleWorldFieldDecorationArgs = {
+  section: LittleWorldFormJsonSection;
+  field: LittleWorldFormJsonField;
+  preview: boolean;
+  editMode: boolean;
+  error: string | null;
+};
+
 type RenderFieldArgs = {
   field: LittleWorldFormJsonField;
   labelOverride?: string;
@@ -89,6 +133,11 @@ export type LittleWorldDynamicFormRendererProps = {
     errorsByField: Record<string, string>;
     invalidFieldUuids: string[];
   }) => void;
+  onFormFieldValidate?: (payload: LittleWorldFormFieldValidationPayload) => void;
+  onFormFieldValidationPassed?: (payload: LittleWorldFormFieldValidationPayload) => void;
+  onFormFieldSectionValidationComplete?: (payload: LittleWorldFormSectionValidationPayload) => void;
+  renderFieldEditActions?: (args: LittleWorldFieldDecorationArgs) => ReactElement | null;
+  renderFieldOverlay?: (args: LittleWorldFieldDecorationArgs) => ReactElement | null;
   renderSectionFields?: (args: SectionFieldsRendererArgs) => ReactElement;
   emptyState?: ReactElement;
 };
@@ -190,6 +239,16 @@ const DragHandleButton = styled(EditIconButton)`
   &:active {
     cursor: grabbing;
   }
+`;
+
+const FieldRenderShell = styled.div`
+  position: relative;
+`;
+
+const FieldOverlayLayer = styled.div`
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 `;
 
 const normalizeValueForField = (field: LittleWorldFormJsonField, raw: FormFieldValue | undefined): FormFieldValue => {
@@ -355,7 +414,16 @@ const validateField = (
   return null;
 };
 
-export default function LittleWorldDynamicFormRenderer({
+type ValidationSnapshot = {
+  errorsByField: Record<string, string>;
+  fieldValidationPayloads: LittleWorldFormFieldValidationPayload[];
+  sectionValidationPayloads: LittleWorldFormSectionValidationPayload[];
+};
+
+const LittleWorldDynamicFormRenderer = forwardRef<
+  LittleWorldDynamicFormRendererHandle,
+  LittleWorldDynamicFormRendererProps
+>(function LittleWorldDynamicFormRenderer({
   documentJson,
   language,
   sectionSelector,
@@ -371,12 +439,26 @@ export default function LittleWorldDynamicFormRenderer({
   onEditReorderFields,
   onRequestSectionDebug,
   onValidationStateChange,
+  onFormFieldValidate,
+  onFormFieldValidationPassed,
+  onFormFieldSectionValidationComplete,
+  renderFieldEditActions,
+  renderFieldOverlay,
   renderSectionFields,
   emptyState,
-}: LittleWorldDynamicFormRendererProps): ReactElement {
+}, ref): ReactElement {
   const [draggedFieldUuid, setDraggedFieldUuid] = useState<string | null>(null);
   const [dropTargetFieldUuid, setDropTargetFieldUuid] = useState<string | null>(null);
   const [dragSectionUuid, setDragSectionUuid] = useState<string | null>(null);
+  const previousFieldValidityRef = useRef<Record<string, boolean>>({});
+  const previousSectionCompletionRef = useRef<Record<string, boolean>>({});
+  const validationSnapshotRef = useRef<ValidationSnapshot>({
+    errorsByField: {},
+    fieldValidationPayloads: [],
+    sectionValidationPayloads: [],
+  });
+  const sectionsRef = useRef<LittleWorldFormJsonSection[]>([]);
+  const fieldValuesRef = useRef<Record<string, FormFieldValue>>({});
   const activeThemeId = getResolvedThemeId(documentJson?.document.theme);
   const normalizedSectionSelector = sectionSelector?.trim();
 
@@ -442,17 +524,165 @@ export default function LittleWorldDynamicFormRenderer({
     return nextErrors;
   }, [fieldValues, language, preview, sections]);
 
-  useEffect(() => {
-    if (!onValidationStateChange) {
-      return;
+  const fieldValidationPayloads = useMemo(() => {
+    const payloads: LittleWorldFormFieldValidationPayload[] = [];
+    for (const section of sections) {
+      for (const field of section.fields) {
+        if (field.type === 'label') {
+          continue;
+        }
+        const value = normalizeValueForField(field, fieldValues[field.uuid]);
+        const error = errorsByField[field.uuid] ?? null;
+        payloads.push({
+          sectionId: section.id,
+          sectionUuid: section.uuid,
+          fieldUuid: field.uuid,
+          value,
+          error,
+          isValid: error === null,
+        });
+      }
     }
-    const invalidFieldUuids = Object.keys(errorsByField);
-    onValidationStateChange({
+    return payloads;
+  }, [errorsByField, fieldValues, sections]);
+
+  const sectionValidationPayloads = useMemo(() => {
+    return sections.map((section) => {
+      const interactiveFields = section.fields.filter((field) => field.type !== 'label');
+      const isComplete = interactiveFields.every((field) => !errorsByField[field.uuid]);
+      return {
+        sectionId: section.id,
+        sectionUuid: section.uuid,
+        isComplete,
+      } satisfies LittleWorldFormSectionValidationPayload;
+    });
+  }, [errorsByField, sections]);
+
+  const emitValidationLifecycle = useCallback(({
+    snapshot,
+    emitSectionCompletionOnUnchanged = false,
+  }: {
+    snapshot: ValidationSnapshot;
+    emitSectionCompletionOnUnchanged?: boolean;
+  }) => {
+    const invalidFieldUuids = Object.keys(snapshot.errorsByField);
+    onValidationStateChange?.({
       isValid: invalidFieldUuids.length === 0,
-      errorsByField,
+      errorsByField: snapshot.errorsByField,
       invalidFieldUuids,
     });
-  }, [errorsByField, onValidationStateChange]);
+
+    const previousValidity = previousFieldValidityRef.current;
+    for (const payload of snapshot.fieldValidationPayloads) {
+      onFormFieldValidate?.(payload);
+      if (onFormFieldValidationPassed) {
+        const previous = previousValidity[payload.fieldUuid];
+        if (previous === false && payload.isValid) {
+          onFormFieldValidationPassed(payload);
+        }
+      }
+    }
+
+    const nextValidity: Record<string, boolean> = {};
+    for (const payload of snapshot.fieldValidationPayloads) {
+      nextValidity[payload.fieldUuid] = payload.isValid;
+    }
+    previousFieldValidityRef.current = nextValidity;
+
+    const previousCompletion = previousSectionCompletionRef.current;
+    for (const payload of snapshot.sectionValidationPayloads) {
+      if (
+        emitSectionCompletionOnUnchanged
+        || previousCompletion[payload.sectionUuid] !== payload.isComplete
+      ) {
+        onFormFieldSectionValidationComplete?.(payload);
+      }
+    }
+
+    const nextCompletion: Record<string, boolean> = {};
+    for (const payload of snapshot.sectionValidationPayloads) {
+      nextCompletion[payload.sectionUuid] = payload.isComplete;
+    }
+    previousSectionCompletionRef.current = nextCompletion;
+  }, [
+    onFormFieldSectionValidationComplete,
+    onFormFieldValidate,
+    onFormFieldValidationPassed,
+    onValidationStateChange,
+  ]);
+
+  validationSnapshotRef.current = {
+    errorsByField,
+    fieldValidationPayloads,
+    sectionValidationPayloads,
+  };
+  sectionsRef.current = sections;
+  fieldValuesRef.current = fieldValues;
+
+  useImperativeHandle(ref, () => ({
+    getFormFieldValue: (fieldUuid: string) => {
+      const section = sectionsRef.current.find((candidateSection) =>
+        candidateSection.fields.some((field) => field.uuid === fieldUuid)
+      );
+      const field = section?.fields.find((candidateField) => candidateField.uuid === fieldUuid);
+      if (!field) {
+        return undefined;
+      }
+      return normalizeValueForField(field, fieldValuesRef.current[fieldUuid]);
+    },
+    getCurrentFormValues: () => ({ ...fieldValuesRef.current }),
+    setFormFieldValue: (fieldUuid: string, nextValue: FormFieldValue) => {
+      if (!documentJson || !onChangeFieldValue || preview) {
+        return false;
+      }
+      const section = sectionsRef.current.find((candidateSection) =>
+        candidateSection.fields.some((field) => field.uuid === fieldUuid)
+      );
+      if (!section) {
+        return false;
+      }
+      const field = section.fields.find((candidateField) => candidateField.uuid === fieldUuid);
+      if (!field || field.type === 'label') {
+        return false;
+      }
+
+      const context: LittleWorldFieldContext = {
+        document: documentJson.document,
+        section,
+        field,
+      };
+      onChangeFieldValue(fieldUuid, nextValue, context);
+      return true;
+    },
+    revalidateCurrentForm: () => {
+      const snapshot = validationSnapshotRef.current;
+      emitValidationLifecycle({
+        snapshot,
+        emitSectionCompletionOnUnchanged: true,
+      });
+      const invalidFieldUuids = Object.keys(snapshot.errorsByField);
+      return {
+        isValid: invalidFieldUuids.length === 0,
+        errorsByField: snapshot.errorsByField,
+        invalidFieldUuids,
+      };
+    },
+  }), [documentJson, emitValidationLifecycle, onChangeFieldValue, preview]);
+
+  useEffect(() => {
+    emitValidationLifecycle({
+      snapshot: {
+        errorsByField,
+        fieldValidationPayloads,
+        sectionValidationPayloads,
+      },
+    });
+  }, [
+    errorsByField,
+    emitValidationLifecycle,
+    fieldValidationPayloads,
+    sectionValidationPayloads,
+  ]);
 
   if (!documentJson || sections.length === 0) {
     return emptyState ?? <></>;
@@ -512,11 +742,25 @@ export default function LittleWorldDynamicFormRenderer({
             editMode: false,
             onChange: (nextValue) => onChangeFieldValue?.(field.uuid, nextValue, context),
           });
+          const decorationArgs: LittleWorldFieldDecorationArgs = {
+            section,
+            field,
+            preview,
+            editMode,
+            error: errorsByField[field.uuid] ?? null,
+          };
+          const renderedOverlay = renderFieldOverlay?.(decorationArgs);
+          const renderedWithOverlay = renderedOverlay ? (
+            <FieldRenderShell>
+              {rendered}
+              <FieldOverlayLayer>{renderedOverlay}</FieldOverlayLayer>
+            </FieldRenderShell>
+          ) : rendered;
 
           if (!editMode || preview) {
             return (
               <div key={field.uuid}>
-                {rendered}
+                {renderedWithOverlay}
                 {!preview && errorsByField[field.uuid] ? <FieldError>{errorsByField[field.uuid]}</FieldError> : null}
               </div>
             );
@@ -591,6 +835,7 @@ export default function LittleWorldDynamicFormRenderer({
                     x
                   </EditIconButton>
                 ) : null}
+                {renderFieldEditActions ? renderFieldEditActions(decorationArgs) : null}
                 {draggable ? (
                   <DragHandleButton
                     type="button"
@@ -601,7 +846,7 @@ export default function LittleWorldDynamicFormRenderer({
                   </DragHandleButton>
                 ) : null}
               </EditActionRow>
-              {rendered}
+              {renderedWithOverlay}
               {errorsByField[field.uuid] ? <FieldError>{errorsByField[field.uuid]}</FieldError> : null}
             </EditFieldCard>
           );
@@ -633,4 +878,8 @@ export default function LittleWorldDynamicFormRenderer({
       })}
     </>
   );
-}
+});
+
+LittleWorldDynamicFormRenderer.displayName = 'LittleWorldDynamicFormRenderer';
+
+export default LittleWorldDynamicFormRenderer;
