@@ -759,9 +759,17 @@ const ESF_THEME: FormThemeDefinition = {
   },
 };
 
+const ESF_UX_AUDIT_EXAMPLE_THEME: FormThemeDefinition = {
+  id: 'esf_ux_audit_example',
+  fieldRenderers: {
+    ...ESF_FIELD_RENDERERS,
+  },
+};
+
 const themeRegistry = new Map<string, FormThemeDefinition>([
   [DEFAULT_THEME.id, DEFAULT_THEME],
   [ESF_THEME.id, ESF_THEME],
+  [ESF_UX_AUDIT_EXAMPLE_THEME.id, ESF_UX_AUDIT_EXAMPLE_THEME],
 ]);
 
 export const createFormTheme = (theme: FormThemeDefinition): FormThemeDefinition => theme;
