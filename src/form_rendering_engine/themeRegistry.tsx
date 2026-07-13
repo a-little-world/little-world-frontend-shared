@@ -179,6 +179,50 @@ const EsfCheckboxRow = styled.label`
   color: #1b1c1c;
 `;
 
+const UxAuditFieldLabel = styled(EsfFieldLabel)`
+  color: #4e4b47;
+  letter-spacing: 0.25px;
+`;
+
+const UxAuditFieldShell = styled(EsfFieldShell)`
+  gap: 9px;
+`;
+
+const UxAuditTextInput = styled(EsfTextInput)`
+  border-color: #d7c9ba;
+  border-radius: 10px;
+  background: #fffdfb;
+
+  &:focus {
+    outline: 2px solid #ffdcc2;
+    border-color: #d85509;
+  }
+`;
+
+const UxAuditSelect = styled(EsfSelect)`
+  border-color: #d7c9ba;
+  border-radius: 10px;
+  background: #fffdfb;
+`;
+
+const UxAuditTextarea = styled(EsfTextarea)`
+  border-color: #d7c9ba;
+  border-radius: 10px;
+  background: #fffdfb;
+`;
+
+const UxAuditOptionCard = styled(EsfOptionCard)<{ $active: boolean }>`
+  border-radius: 12px;
+  border-width: 1.25px;
+  border-color: ${({ $active }) => ($active ? '#d85509' : '#ddcfc3')};
+  background: ${({ $active }) => ($active ? '#d85509' : '#fffdfa')};
+`;
+
+const UxAuditCheckboxRow = styled(EsfCheckboxRow)`
+  padding: 2px 0;
+  color: #242423;
+`;
+
 const InfoHintCard = styled.div`
   margin-bottom: 4px;
   border-left: 3.75px solid #d85509;
@@ -565,6 +609,18 @@ const renderEsfField = (props: ThemeFieldRendererProps, child: ReactElement): Re
   );
 };
 
+const renderUxAuditField = (props: ThemeFieldRendererProps, child: ReactElement): ReactElement => {
+  if (props.preview) {
+    return child;
+  }
+  return (
+    <UxAuditFieldShell>
+      <UxAuditFieldLabel>{props.label}</UxAuditFieldLabel>
+      {child}
+    </UxAuditFieldShell>
+  );
+};
+
 const ESF_FIELD_RENDERERS: Partial<Record<FormFieldKind, ThemeFieldRenderer>> = {
   label: DEFAULT_FIELD_RENDERERS.label,
   text: (props) => {
@@ -747,6 +803,188 @@ const ESF_FIELD_RENDERERS: Partial<Record<FormFieldKind, ThemeFieldRenderer>> = 
   },
 };
 
+const ESF_UX_AUDIT_EXAMPLE_FIELD_RENDERERS: Partial<Record<FormFieldKind, ThemeFieldRenderer>> = {
+  ...ESF_FIELD_RENDERERS,
+  text: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderUxAuditField(
+      props,
+      <UxAuditTextInput
+        id={props.fieldUuid}
+        type="text"
+        disabled={props.disabled}
+        value={typeof props.value === 'string' ? props.value : ''}
+        onChange={(event) => props.onChange(event.target.value)}
+      />,
+    );
+  },
+  date: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderUxAuditField(
+      props,
+      <UxAuditTextInput
+        id={props.fieldUuid}
+        type="date"
+        disabled={props.disabled}
+        value={typeof props.value === 'string' ? props.value : ''}
+        onChange={(event) => props.onChange(event.target.value)}
+      />,
+    );
+  },
+  number: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderUxAuditField(
+      props,
+      <UxAuditTextInput
+        id={props.fieldUuid}
+        type="number"
+        disabled={props.disabled}
+        value={typeof props.value === 'string' ? props.value : ''}
+        onChange={(event) => props.onChange(event.target.value)}
+      />,
+    );
+  },
+  tel: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderUxAuditField(
+      props,
+      <UxAuditTextInput
+        id={props.fieldUuid}
+        type="tel"
+        disabled={props.disabled}
+        value={typeof props.value === 'string' ? props.value : ''}
+        onChange={(event) => props.onChange(event.target.value)}
+      />,
+    );
+  },
+  email: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderUxAuditField(
+      props,
+      <UxAuditTextInput
+        id={props.fieldUuid}
+        type="email"
+        disabled={props.disabled}
+        value={typeof props.value === 'string' ? props.value : ''}
+        onChange={(event) => props.onChange(event.target.value)}
+      />,
+    );
+  },
+  textarea: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderUxAuditField(
+      props,
+      <UxAuditTextarea
+        id={props.fieldUuid}
+        disabled={props.disabled}
+        value={typeof props.value === 'string' ? props.value : ''}
+        onChange={(event) => props.onChange(event.target.value)}
+      />,
+    );
+  },
+  select: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderUxAuditField(
+      props,
+      <UxAuditSelect
+        disabled={props.disabled}
+        value={typeof props.value === 'string' ? props.value : ''}
+        onChange={(event) => props.onChange(event.target.value)}
+      >
+        <option value="">Select...</option>
+        {props.options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {resolveOptionLabel(option, props.language)}
+          </option>
+        ))}
+      </UxAuditSelect>,
+    );
+  },
+  radio: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderUxAuditField(
+      props,
+      <EsfOptionGrid>
+        {props.options.map((option) => {
+          const optionValue = option.value;
+          const selected = String(props.value ?? '') === optionValue;
+          return (
+            <UxAuditOptionCard
+              key={`${props.fieldUuid}-${optionValue}`}
+              type="button"
+              $active={selected}
+              disabled={props.disabled}
+              onClick={() => props.onChange(optionValue)}
+            >
+              {resolveOptionLabel(option, props.language)}
+            </UxAuditOptionCard>
+          );
+        })}
+      </EsfOptionGrid>,
+    );
+  },
+  checkbox_group: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    const selectedValues = Array.isArray(props.value) ? props.value : [];
+    return renderUxAuditField(
+      props,
+      <CheckList>
+        {props.options.map((option) => (
+          <UxAuditCheckboxRow key={option.value}>
+            <input
+              type="checkbox"
+              disabled={props.disabled}
+              checked={selectedValues.includes(option.value)}
+              onChange={(event) => {
+                const next = event.target.checked
+                  ? [...selectedValues, option.value]
+                  : selectedValues.filter((entry) => entry !== option.value);
+                props.onChange(next);
+              }}
+            />
+            <span>{resolveOptionLabel(option, props.language)}</span>
+          </UxAuditCheckboxRow>
+        ))}
+      </CheckList>,
+    );
+  },
+  checkbox: (props) => {
+    if (props.preview) {
+      return renderPreviewField(props.label, props.value);
+    }
+    return renderUxAuditField(
+      props,
+      <UxAuditCheckboxRow>
+        <input
+          type="checkbox"
+          disabled={props.disabled}
+          checked={Boolean(props.value)}
+          onChange={(event) => props.onChange(event.target.checked)}
+        />
+        <span>{props.prompt}</span>
+      </UxAuditCheckboxRow>,
+    );
+  },
+};
+
 const DEFAULT_THEME: FormThemeDefinition = {
   id: 'default',
   fieldRenderers: DEFAULT_FIELD_RENDERERS,
@@ -762,7 +1000,7 @@ const ESF_THEME: FormThemeDefinition = {
 const ESF_UX_AUDIT_EXAMPLE_THEME: FormThemeDefinition = {
   id: 'esf_ux_audit_example',
   fieldRenderers: {
-    ...ESF_FIELD_RENDERERS,
+    ...ESF_UX_AUDIT_EXAMPLE_FIELD_RENDERERS,
   },
 };
 

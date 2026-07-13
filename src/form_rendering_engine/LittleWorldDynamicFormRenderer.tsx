@@ -198,6 +198,97 @@ const FieldStack = styled.div`
   margin-top: 20px;
 `;
 
+const ThemedFieldStack = styled(FieldStack)<{ $themeId: string; $editMode: boolean; $preview: boolean }>`
+  ${({ $themeId, $editMode }) =>
+    $themeId === 'esf_ux_audit_example' && !$editMode
+      ? `
+    row-gap: 16px;
+    column-gap: 0;
+    grid-template-columns: 1fr;
+
+    & > .lw-field-item {
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      padding: 0 8px;
+    }
+
+    & > .lw-field-item > .lw-field-content {
+      width: 100%;
+      min-width: 0;
+      overflow: visible;
+    }
+
+    & > .lw-field-item > .lw-field-content > * {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    & > .lw-field-item > .lw-field-content input,
+    & > .lw-field-item > .lw-field-content select,
+    & > .lw-field-item > .lw-field-content textarea {
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    @media (min-width: 900px) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+
+      & > .lw-field-item {
+        grid-column: span 1;
+      }
+
+      & > .lw-field-item[data-kind='label'],
+      & > .lw-field-item[data-kind='radio'],
+      & > .lw-field-item[data-kind='checkbox_group'],
+      & > .lw-field-item[data-kind='textarea'],
+      & > .lw-field-item[data-kind='checkbox'] {
+        grid-column: 1 / -1;
+      }
+
+      & > .lw-field-item[data-field-name='new_residence_street'],
+      & > .lw-field-item[data-field-name='old_residence_street'] {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (min-width: 1280px) {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+
+      & > .lw-field-item {
+        grid-column: span 2;
+      }
+
+      & > .lw-field-item[data-kind='label'],
+      & > .lw-field-item[data-kind='radio'],
+      & > .lw-field-item[data-kind='checkbox_group'],
+      & > .lw-field-item[data-kind='textarea'],
+      & > .lw-field-item[data-kind='checkbox'] {
+        grid-column: 1 / -1;
+      }
+
+      & > .lw-field-item[data-field-name='new_residence_street'],
+      & > .lw-field-item[data-field-name='old_residence_street'] {
+        grid-column: 1 / span 4;
+      }
+    }
+  `
+      : ''}
+`;
+
+const FieldItem = styled.div`
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+`;
+
+const FieldContent = styled.div`
+  min-width: 0;
+  width: 100%;
+`;
+
 const DebugButton = styled.button`
   border: 1px solid #f2d5c0;
   background: #fff5ee;
@@ -336,6 +427,26 @@ const resolveFieldLabel = (field: LittleWorldFormJsonField, language: string): s
     return field.label;
   }
   return field.label_i18n[language] ?? field.label_i18n.de ?? field.label_i18n.en ?? field.label;
+};
+
+const normalizeFieldKind = (fieldType: string): string => {
+  const normalized = fieldType.toLowerCase();
+  if (normalized === 'dropdown') {
+    return 'select';
+  }
+  if (normalized === 'boolean') {
+    return 'checkbox';
+  }
+  if (normalized === 'numeric') {
+    return 'number';
+  }
+  if (normalized === 'phone') {
+    return 'tel';
+  }
+  if (normalized === 'hint' || normalized === 'info' || normalized === 'notice') {
+    return 'label';
+  }
+  return normalized;
 };
 
 const isEmptyValue = (value: FormFieldValue): boolean => {
@@ -876,10 +987,15 @@ const LittleWorldDynamicFormRenderer = forwardRef<
 
           if (!editMode || preview) {
             return (
-              <div key={field.uuid}>
-                {renderedWithOverlay}
+              <FieldItem
+                key={field.uuid}
+                className="lw-field-item"
+                data-kind={normalizeFieldKind(field.type)}
+                data-field-name={field.name}
+              >
+                <FieldContent className="lw-field-content">{renderedWithOverlay}</FieldContent>
                 {!preview && errorsByField[field.uuid] ? <FieldError>{errorsByField[field.uuid]}</FieldError> : null}
-              </div>
+              </FieldItem>
             );
           }
 
@@ -1045,29 +1161,35 @@ const LittleWorldDynamicFormRenderer = forwardRef<
           const fieldNodes: ReactElement[] = [];
           for (const [index, field] of section.fields.entries()) {
             const beforeField = index > 0 ? section.fields[index - 1] : null;
-            fieldNodes.push(
-              <div key={`insert-before-${field.uuid}`}>
-                {renderInsertSlot({
-                  beforeField,
-                  afterField: field,
-                  placement: 'full',
-                  anchorField: null,
-                })}
-              </div>,
-            );
+            const beforeSlot = renderInsertSlot({
+              beforeField,
+              afterField: field,
+              placement: 'full',
+              anchorField: null,
+            });
+            if (beforeSlot) {
+              fieldNodes.push(
+                <FieldItem key={`insert-before-${field.uuid}`} className="lw-field-item" data-kind="insert-slot">
+                  {beforeSlot}
+                </FieldItem>,
+              );
+            }
             fieldNodes.push(renderField({ field }));
           }
           const lastField = section.fields.length > 0 ? section.fields[section.fields.length - 1] : null;
-          fieldNodes.push(
-            <div key="insert-after-last">
-              {renderInsertSlot({
-                beforeField: lastField,
-                afterField: null,
-                placement: 'full',
-                anchorField: null,
-              })}
-            </div>,
-          );
+          const afterSlot = renderInsertSlot({
+            beforeField: lastField,
+            afterField: null,
+            placement: 'full',
+            anchorField: null,
+          });
+          if (afterSlot) {
+            fieldNodes.push(
+              <FieldItem key="insert-after-last" className="lw-field-item" data-kind="insert-slot">
+                {afterSlot}
+              </FieldItem>,
+            );
+          }
           return <>{fieldNodes}</>;
         };
 
@@ -1082,7 +1204,7 @@ const LittleWorldDynamicFormRenderer = forwardRef<
               ) : null}
             </SectionHeader>
             {section.description ? <SectionDescription>{section.description}</SectionDescription> : null}
-            <FieldStack>
+            <ThemedFieldStack $themeId={activeThemeId} $editMode={editMode} $preview={preview}>
               {renderSectionFields
                 ? renderSectionFields({
                   section,
@@ -1092,7 +1214,7 @@ const LittleWorldDynamicFormRenderer = forwardRef<
                   renderInsertSlot,
                 })
                 : renderDefaultFields()}
-            </FieldStack>
+            </ThemedFieldStack>
           </SectionBlock>
         );
       })}
