@@ -126,6 +126,11 @@ export type LittleWorldFieldReorderDropPayload = {
   anchorFieldUuid: string | null;
 };
 
+type RenderInsertSlotAnchor = Pick<
+  RenderInsertSlotArgs,
+  'beforeField' | 'afterField' | 'placement' | 'anchorField'
+>;
+
 type SectionFieldsRendererArgs = {
   section: LittleWorldFormJsonSection;
   fields: LittleWorldFormJsonField[];
@@ -870,7 +875,7 @@ const LittleWorldDynamicFormRenderer = forwardRef<
   const applyInsertionDrop = (
     section: LittleWorldFormJsonSection,
     event: DragEvent<HTMLDivElement>,
-    slot: Omit<RenderInsertSlotArgs, 'section'>,
+    slot: RenderInsertSlotAnchor,
   ) => {
     if (!onEditReorderFields) {
       return;
@@ -924,7 +929,7 @@ const LittleWorldDynamicFormRenderer = forwardRef<
     setDropTargetSlotKey(null);
   };
 
-  const buildInsertSlotKey = (sectionUuid: string, slot: Omit<RenderInsertSlotArgs, 'section' | 'isDropTarget' | 'isDragActive'>): string => {
+  const buildInsertSlotKey = (sectionUuid: string, slot: RenderInsertSlotAnchor): string => {
     return [
       sectionUuid,
       slot.beforeField?.uuid ?? 'none',
@@ -1159,7 +1164,8 @@ const LittleWorldDynamicFormRenderer = forwardRef<
 
         const renderDefaultFields = (): ReactElement => {
           const fieldNodes: ReactElement[] = [];
-          for (const [index, field] of section.fields.entries()) {
+          for (let index = 0; index < section.fields.length; index += 1) {
+            const field = section.fields[index];
             const beforeField = index > 0 ? section.fields[index - 1] : null;
             const beforeSlot = renderInsertSlot({
               beforeField,

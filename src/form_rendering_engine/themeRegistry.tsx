@@ -1,4 +1,14 @@
-import { DatePicker, RadioGroup, TextInput } from '@a-little-world/little-world-design-system';
+import {
+  Checkbox,
+  CheckboxGroup,
+  DatePicker,
+  FieldHint,
+  InfoIcon,
+  RadioGroup,
+  Select,
+  TextArea,
+  TextInput,
+} from '@a-little-world/little-world-design-system';
 import { RadioGroupVariations } from '@a-little-world/little-world-design-system-core';
 import { createRef, type ReactElement, type RefObject } from 'react';
 import styled from 'styled-components';
@@ -47,18 +57,6 @@ export type FormThemeDefinition = {
   fieldRenderers: Partial<Record<FormFieldKind, ThemeFieldRenderer>>;
 };
 
-const CheckList = styled.div`
-  display: grid;
-  gap: 0.35rem;
-  margin-top: 0.35rem;
-`;
-
-const CheckItem = styled.label`
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-`;
-
 const EsfFieldLabel = styled.div`
   font-size: 11px;
   font-weight: 700;
@@ -73,112 +71,6 @@ const EsfFieldShell = styled.div`
   gap: 8px;
 `;
 
-const EsfTextInput = styled.input`
-  width: 100%;
-  height: 49px;
-  border: 0.625px solid #e0e0e0;
-  border-radius: 4px;
-  padding: 12px 16px;
-  font-size: 16px;
-  line-height: 1.3;
-  color: #1b1c1c;
-  background: #ffffff;
-
-  &:focus {
-    outline: 2px solid #ffd5be;
-    border-color: #d85509;
-  }
-
-  &:disabled {
-    background: #f6f6f6;
-    color: #9ca3af;
-    cursor: not-allowed;
-  }
-`;
-
-const EsfSelect = styled.select`
-  width: 100%;
-  height: 49px;
-  border: 0.625px solid #e0e0e0;
-  border-radius: 4px;
-  padding: 12px 16px;
-  font-size: 16px;
-  line-height: 1.3;
-  color: #1b1c1c;
-  background: #ffffff;
-
-  &:focus {
-    outline: 2px solid #ffd5be;
-    border-color: #d85509;
-  }
-
-  &:disabled {
-    background: #f6f6f6;
-    color: #9ca3af;
-    cursor: not-allowed;
-  }
-`;
-
-const EsfTextarea = styled.textarea`
-  width: 100%;
-  min-height: 96px;
-  border: 0.625px solid #e0e0e0;
-  border-radius: 4px;
-  padding: 12px 16px;
-  font-size: 16px;
-  line-height: 1.35;
-  color: #1b1c1c;
-  background: #ffffff;
-  resize: vertical;
-
-  &:focus {
-    outline: 2px solid #ffd5be;
-    border-color: #d85509;
-  }
-
-  &:disabled {
-    background: #f6f6f6;
-    color: #9ca3af;
-    cursor: not-allowed;
-  }
-`;
-
-const EsfOptionGrid = styled.div`
-  display: grid;
-  gap: 12px;
-
-  @media (min-width: 960px) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-`;
-
-const EsfOptionCard = styled.button<{ $active: boolean }>`
-  border: 1.875px solid ${({ $active }) => ($active ? '#d85509' : '#e0e0e0')};
-  background: ${({ $active }) => ($active ? '#d85509' : '#ffffff')};
-  color: ${({ $active }) => ($active ? '#ffffff' : '#0f172a')};
-  border-radius: 4px;
-  min-height: 56px;
-  padding: 12px 14px;
-  text-align: center;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.25;
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-`;
-
-const EsfCheckboxRow = styled.label`
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 15px;
-  color: #1b1c1c;
-`;
-
 const UxAuditFieldLabel = styled(EsfFieldLabel)`
   color: #4e4b47;
   letter-spacing: 0.25px;
@@ -186,41 +78,6 @@ const UxAuditFieldLabel = styled(EsfFieldLabel)`
 
 const UxAuditFieldShell = styled(EsfFieldShell)`
   gap: 9px;
-`;
-
-const UxAuditTextInput = styled(EsfTextInput)`
-  border-color: #d7c9ba;
-  border-radius: 10px;
-  background: #fffdfb;
-
-  &:focus {
-    outline: 2px solid #ffdcc2;
-    border-color: #d85509;
-  }
-`;
-
-const UxAuditSelect = styled(EsfSelect)`
-  border-color: #d7c9ba;
-  border-radius: 10px;
-  background: #fffdfb;
-`;
-
-const UxAuditTextarea = styled(EsfTextarea)`
-  border-color: #d7c9ba;
-  border-radius: 10px;
-  background: #fffdfb;
-`;
-
-const UxAuditOptionCard = styled(EsfOptionCard)<{ $active: boolean }>`
-  border-radius: 12px;
-  border-width: 1.25px;
-  border-color: ${({ $active }) => ($active ? '#d85509' : '#ddcfc3')};
-  background: ${({ $active }) => ($active ? '#d85509' : '#fffdfa')};
-`;
-
-const UxAuditCheckboxRow = styled(EsfCheckboxRow)`
-  padding: 2px 0;
-  color: #242423;
 `;
 
 const InfoHintCard = styled.div`
@@ -237,33 +94,11 @@ const InfoHintRow = styled.div`
   gap: 10px;
 `;
 
-const InfoHintIcon = styled.div`
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  border: 1px solid #d85509;
-  color: #d85509;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
-  flex-shrink: 0;
-`;
-
 const InfoHintTitle = styled.div`
   font-size: 14px;
   line-height: 20px;
   font-weight: 700;
   color: #1b1c1c;
-`;
-
-const InfoHintText = styled.div`
-  margin-top: 4px;
-  font-size: 14px;
-  line-height: 22px;
-  color: #594138;
 `;
 
 const PreviewFieldShell = styled.div`
@@ -396,594 +231,277 @@ const resolveOptionLabel = (option: FormFieldOption, language: string): string =
   return option.label[language] ?? option.label.de ?? option.label.en ?? option.value;
 };
 
+const toDataSelectOptions = (options: FormFieldOption[], language: string) =>
+  options.map((option) => ({
+    value: option.value,
+    label: resolveOptionLabel(option, language),
+  }));
+
+const InfoHint: ThemeFieldRenderer = ({ label, prompt }) => {
+  const body = prompt && prompt !== label ? prompt : '';
+  return (
+    <InfoHintCard>
+      <InfoHintRow>
+        <InfoIcon label="hint" width={20} height={20} color="#d85509" />
+        <div>
+          <InfoHintTitle>{label}</InfoHintTitle>
+          {body ? <FieldHint text={body} /> : null}
+        </div>
+      </InfoHintRow>
+    </InfoHintCard>
+  );
+};
+
+const LabeledTextInput = ({
+  id,
+  label,
+  type,
+  value,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  label?: string;
+  type: 'text' | 'number' | 'tel' | 'email';
+  value: string;
+  onChange: (nextValue: string) => void;
+  disabled?: boolean;
+}) => {
+  const sharedProps = {
+    id,
+    type,
+    value,
+    disabled,
+    onChange: (event: React.ChangeEvent<HTMLInputElement>) => onChange(event.target.value),
+  };
+  if (label === undefined) {
+    return <TextInput {...sharedProps} />;
+  }
+  return <TextInput {...sharedProps} label={label} />;
+};
+
+const LabeledDatePicker = ({
+  id,
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  label?: string;
+  value: FormFieldValue;
+  onChange: (nextValue: string) => void;
+  disabled?: boolean;
+}) => {
+  const sharedProps = {
+    id,
+    value: parseDateForPicker(value),
+    disabled,
+    onChange: (nextDate: Date | undefined) =>
+      onChange(nextDate ? nextDate.toISOString().slice(0, 10) : ''),
+  };
+  if (label === undefined) {
+    return <DatePicker {...sharedProps} />;
+  }
+  return <DatePicker {...sharedProps} label={label} />;
+};
+
+const LabeledTextArea = ({
+  id,
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  label?: string;
+  value: string;
+  onChange: (nextValue: string) => void;
+  disabled?: boolean;
+}) => {
+  const sharedProps = {
+    id,
+    value,
+    disabled,
+    onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => onChange(event.target.value),
+  };
+  if (label === undefined) {
+    return <TextArea {...sharedProps} />;
+  }
+  return <TextArea {...sharedProps} label={label} />;
+};
+
+type RenderDsControlOptions = {
+  withLabel: boolean;
+};
+
+const renderDsControl = (
+  props: ThemeFieldRendererProps,
+  { withLabel }: RenderDsControlOptions,
+): ReactElement => {
+  if (props.preview) {
+    return renderPreviewField(props.label, props.value);
+  }
+
+  const kind = normalizeFieldKind(props.fieldType);
+  const label = withLabel ? props.label : undefined;
+  const stringValue = typeof props.value === 'string' ? props.value : '';
+
+  switch (kind) {
+    case 'text':
+    case 'number':
+    case 'tel':
+    case 'email': {
+      const type = kind === 'number' ? 'number' : kind === 'tel' ? 'tel' : kind === 'email' ? 'email' : 'text';
+      return (
+        <LabeledTextInput
+          id={props.fieldUuid}
+          label={label}
+          type={type}
+          value={stringValue}
+          onChange={(nextValue) => props.onChange(nextValue)}
+          disabled={props.disabled}
+        />
+      );
+    }
+    case 'date':
+      return (
+        <LabeledDatePicker
+          id={props.fieldUuid}
+          label={label}
+          value={props.value}
+          onChange={(nextValue) => props.onChange(nextValue)}
+          disabled={props.disabled}
+        />
+      );
+    case 'textarea':
+      return (
+        <LabeledTextArea
+          id={props.fieldUuid}
+          label={label}
+          value={stringValue}
+          onChange={(nextValue) => props.onChange(nextValue)}
+          disabled={props.disabled}
+        />
+      );
+    case 'select':
+      return (
+        <Select
+          key={`${props.fieldUuid}-${stringValue}`}
+          id={props.fieldUuid}
+          label={label}
+          value={stringValue}
+          onValueChange={(nextValue) => props.onChange(nextValue)}
+          options={toDataSelectOptions(props.options, props.language)}
+          placeholder="Select..."
+          disabled={props.disabled}
+        />
+      );
+    case 'radio':
+      return (
+        <RadioGroup
+          label={label}
+          type={RadioGroupVariations.Pill}
+          value={stringValue}
+          onValueChange={(nextValue) => props.onChange(nextValue)}
+          items={props.options.map((option) => ({
+            id: `${props.fieldUuid}-${option.value}`,
+            value: option.value,
+            label: resolveOptionLabel(option, props.language),
+          }))}
+          inputRef={createRef<HTMLInputElement>() as RefObject<HTMLInputElement>}
+          disabled={props.disabled}
+        />
+      );
+    case 'checkbox':
+      return (
+        <Checkbox
+          id={props.fieldUuid}
+          label={props.prompt && props.prompt !== props.label ? props.prompt : props.label}
+          checked={Boolean(props.value)}
+          onCheckedChange={(checked) => props.onChange(checked === true)}
+          disabled={props.disabled}
+          required={false}
+        />
+      );
+    case 'checkbox_group': {
+      const selectedValues = Array.isArray(props.value) ? props.value : [];
+      return (
+        <CheckboxGroup
+          key={`${props.fieldUuid}-${selectedValues.join(',')}`}
+          name={props.fieldUuid}
+          heading={label}
+          options={toDataSelectOptions(props.options, props.language)}
+          preSelected={selectedValues}
+          onSelection={(selected) => props.onChange(selected)}
+          orientation="vertical"
+        />
+      );
+    }
+    default:
+      return renderPreviewField(props.label, props.value);
+  }
+};
+
 const DEFAULT_FIELD_RENDERERS: Record<FormFieldKind, ThemeFieldRenderer> = {
-  label: ({ label, prompt }) => {
-    const body = prompt && prompt !== label ? prompt : '';
-    return (
-      <InfoHintCard>
-        <InfoHintRow>
-          <InfoHintIcon>i</InfoHintIcon>
-          <div>
-            <InfoHintTitle>{label}</InfoHintTitle>
-            {body ? <InfoHintText>{body}</InfoHintText> : null}
-          </div>
-        </InfoHintRow>
-      </InfoHintCard>
-    );
-  },
-  text: ({ fieldUuid, label, value, onChange, disabled, preview }) => {
-    if (preview) {
-      return renderPreviewField(label, value);
-    }
-    return (
-      <TextInput
-        id={fieldUuid}
-        label={label}
-        value={typeof value === 'string' ? value : ''}
-        onChange={(event) => onChange(event.target.value)}
-        disabled={disabled}
-      />
-    );
-  },
-  date: ({ fieldUuid, label, value, onChange, disabled, preview }) => {
-    if (preview) {
-      return renderPreviewField(label, value);
-    }
-    return (
-      <DatePicker
-        id={fieldUuid}
-        label={label}
-        value={parseDateForPicker(value)}
-        onChange={(nextDate) => onChange(nextDate ? nextDate.toISOString().slice(0, 10) : '')}
-        disabled={disabled}
-      />
-    );
-  },
-  radio: ({ fieldUuid, label, value, options, onChange, language, disabled, preview }) => {
-    if (preview) {
-      return renderPreviewField(label, value);
-    }
-    return (
-      <RadioGroup
-        label={label}
-        type={RadioGroupVariations.Pill}
-        value={typeof value === 'string' ? value : ''}
-        onValueChange={(nextValue) => onChange(nextValue)}
-        items={options.map((option) => ({
-          id: `${fieldUuid}-${option.value}`,
-          value: option.value,
-          label: resolveOptionLabel(option, language),
-        }))}
-        inputRef={createRef<HTMLInputElement>() as RefObject<HTMLInputElement>}
-        disabled={disabled}
-      />
-    );
-  },
-  checkbox_group: ({ label, value, options, onChange, language, disabled, preview }) => {
-    if (preview) {
-      return renderPreviewField(label, value);
-    }
-    const selectedValues = Array.isArray(value) ? value : [];
-    return (
-      <div>
-        <div style={{ fontWeight: 600 }}>{label}</div>
-        <CheckList>
-          {options.map((option) => (
-            <CheckItem key={option.value}>
-              <input
-                type="checkbox"
-                disabled={disabled}
-                checked={selectedValues.includes(option.value)}
-                onChange={(event) => {
-                  const next = event.target.checked
-                    ? [...selectedValues, option.value]
-                    : selectedValues.filter((entry) => entry !== option.value);
-                  onChange(next);
-                }}
-              />
-              <span>{resolveOptionLabel(option, language)}</span>
-            </CheckItem>
-          ))}
-        </CheckList>
-      </div>
-    );
-  },
-  checkbox: ({ label, value, onChange, disabled, preview }) => {
-    if (preview) {
-      return renderPreviewField(label, value);
-    }
-    return (
-      <CheckItem>
-        <input
-          type="checkbox"
-          disabled={disabled}
-          checked={Boolean(value)}
-          onChange={(event) => onChange(event.target.checked)}
-        />
-        <span>{label}</span>
-      </CheckItem>
-    );
-  },
-  select: ({ label, value, options, onChange, language, disabled, preview }) => {
-    if (preview) {
-      return renderPreviewField(label, value);
-    }
-    return (
-      <div>
-        <div style={{ fontWeight: 600 }}>{label}</div>
-        <select
-          disabled={disabled}
-          value={typeof value === 'string' ? value : ''}
-          onChange={(event) => onChange(event.target.value)}
-          style={{ marginTop: 8, width: '100%', minHeight: 34 }}
-        >
-          <option value="">Select...</option>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {resolveOptionLabel(option, language)}
-            </option>
-          ))}
-        </select>
-      </div>
-    );
-  },
-  textarea: ({ label, value, onChange, disabled, preview }) => {
-    if (preview) {
-      return renderPreviewField(label, value);
-    }
-    return (
-      <div>
-        <div style={{ fontWeight: 600 }}>{label}</div>
-        <textarea
-          disabled={disabled}
-          value={typeof value === 'string' ? value : ''}
-          onChange={(event) => onChange(event.target.value)}
-          rows={4}
-          style={{ marginTop: 8, width: '100%', resize: 'vertical' }}
-        />
-      </div>
-    );
-  },
-  number: ({ label, value, onChange, disabled, preview }) => {
-    if (preview) {
-      return renderPreviewField(label, value);
-    }
-    return (
-      <div>
-        <div style={{ fontWeight: 600 }}>{label}</div>
-        <input
-          type="number"
-          disabled={disabled}
-          value={typeof value === 'string' ? value : ''}
-          onChange={(event) => onChange(event.target.value)}
-          style={{ marginTop: 8, width: '100%', minHeight: 34 }}
-        />
-      </div>
-    );
-  },
-  tel: ({ label, value, onChange, disabled, preview }) => {
-    if (preview) {
-      return renderPreviewField(label, value);
-    }
-    return (
-      <div>
-        <div style={{ fontWeight: 600 }}>{label}</div>
-        <input
-          type="tel"
-          disabled={disabled}
-          value={typeof value === 'string' ? value : ''}
-          onChange={(event) => onChange(event.target.value)}
-          style={{ marginTop: 8, width: '100%', minHeight: 34 }}
-        />
-      </div>
-    );
-  },
-  email: ({ label, value, onChange, disabled, preview }) => {
-    if (preview) {
-      return renderPreviewField(label, value);
-    }
-    return (
-      <div>
-        <div style={{ fontWeight: 600 }}>{label}</div>
-        <input
-          type="email"
-          disabled={disabled}
-          value={typeof value === 'string' ? value : ''}
-          onChange={(event) => onChange(event.target.value)}
-          style={{ marginTop: 8, width: '100%', minHeight: 34 }}
-        />
-      </div>
-    );
-  },
+  label: InfoHint,
+  text: (props) => renderDsControl(props, { withLabel: true }),
+  date: (props) => renderDsControl(props, { withLabel: true }),
+  radio: (props) => renderDsControl(props, { withLabel: true }),
+  checkbox_group: (props) => renderDsControl(props, { withLabel: true }),
+  checkbox: (props) => renderDsControl(props, { withLabel: true }),
+  select: (props) => renderDsControl(props, { withLabel: true }),
+  textarea: (props) => renderDsControl(props, { withLabel: true }),
+  number: (props) => renderDsControl(props, { withLabel: true }),
+  tel: (props) => renderDsControl(props, { withLabel: true }),
+  email: (props) => renderDsControl(props, { withLabel: true }),
 };
 
-const renderEsfField = (props: ThemeFieldRendererProps, child: ReactElement): ReactElement => {
+const renderThemedField = (
+  props: ThemeFieldRendererProps,
+  Shell: typeof EsfFieldShell,
+  FieldLabel: typeof EsfFieldLabel,
+): ReactElement => {
   if (props.preview) {
-    return child;
+    return renderPreviewField(props.label, props.value);
+  }
+  const kind = normalizeFieldKind(props.fieldType);
+  if (kind === 'checkbox' || kind === 'checkbox_group' || kind === 'radio') {
+    return renderDsControl(props, { withLabel: true });
   }
   return (
-    <EsfFieldShell>
-      <EsfFieldLabel>{props.label}</EsfFieldLabel>
-      {child}
-    </EsfFieldShell>
+    <Shell>
+      <FieldLabel>{props.label}</FieldLabel>
+      {renderDsControl(props, { withLabel: false })}
+    </Shell>
   );
 };
 
-const renderUxAuditField = (props: ThemeFieldRendererProps, child: ReactElement): ReactElement => {
-  if (props.preview) {
-    return child;
-  }
-  return (
-    <UxAuditFieldShell>
-      <UxAuditFieldLabel>{props.label}</UxAuditFieldLabel>
-      {child}
-    </UxAuditFieldShell>
-  );
+const createThemedFieldRenderers = (
+  Shell: typeof EsfFieldShell,
+  FieldLabel: typeof EsfFieldLabel,
+): Partial<Record<FormFieldKind, ThemeFieldRenderer>> => {
+  const themed = (props: ThemeFieldRendererProps) => renderThemedField(props, Shell, FieldLabel);
+  return {
+    label: InfoHint,
+    text: themed,
+    date: themed,
+    number: themed,
+    tel: themed,
+    email: themed,
+    textarea: themed,
+    select: themed,
+    radio: (props) => renderDsControl(props, { withLabel: true }),
+    checkbox: (props) => renderDsControl(props, { withLabel: true }),
+    checkbox_group: (props) => renderDsControl(props, { withLabel: true }),
+  };
 };
 
-const ESF_FIELD_RENDERERS: Partial<Record<FormFieldKind, ThemeFieldRenderer>> = {
-  label: DEFAULT_FIELD_RENDERERS.label,
-  text: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderEsfField(
-      props,
-      <EsfTextInput
-        id={props.fieldUuid}
-        type="text"
-        disabled={props.disabled}
-        value={typeof props.value === 'string' ? props.value : ''}
-        onChange={(event) => props.onChange(event.target.value)}
-      />,
-    );
-  },
-  date: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderEsfField(
-      props,
-      <EsfTextInput
-        id={props.fieldUuid}
-        type="date"
-        disabled={props.disabled}
-        value={typeof props.value === 'string' ? props.value : ''}
-        onChange={(event) => props.onChange(event.target.value)}
-      />,
-    );
-  },
-  number: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderEsfField(
-      props,
-      <EsfTextInput
-        id={props.fieldUuid}
-        type="number"
-        disabled={props.disabled}
-        value={typeof props.value === 'string' ? props.value : ''}
-        onChange={(event) => props.onChange(event.target.value)}
-      />,
-    );
-  },
-  tel: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderEsfField(
-      props,
-      <EsfTextInput
-        id={props.fieldUuid}
-        type="tel"
-        disabled={props.disabled}
-        value={typeof props.value === 'string' ? props.value : ''}
-        onChange={(event) => props.onChange(event.target.value)}
-      />,
-    );
-  },
-  email: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderEsfField(
-      props,
-      <EsfTextInput
-        id={props.fieldUuid}
-        type="email"
-        disabled={props.disabled}
-        value={typeof props.value === 'string' ? props.value : ''}
-        onChange={(event) => props.onChange(event.target.value)}
-      />,
-    );
-  },
-  textarea: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderEsfField(
-      props,
-      <EsfTextarea
-        id={props.fieldUuid}
-        disabled={props.disabled}
-        value={typeof props.value === 'string' ? props.value : ''}
-        onChange={(event) => props.onChange(event.target.value)}
-      />,
-    );
-  },
-  select: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderEsfField(
-      props,
-      <EsfSelect
-        disabled={props.disabled}
-        value={typeof props.value === 'string' ? props.value : ''}
-        onChange={(event) => props.onChange(event.target.value)}
-      >
-        <option value="">Select...</option>
-        {props.options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {resolveOptionLabel(option, props.language)}
-          </option>
-        ))}
-      </EsfSelect>,
-    );
-  },
-  radio: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderEsfField(
-      props,
-      <EsfOptionGrid>
-        {props.options.map((option) => {
-          const optionValue = option.value;
-          const selected = String(props.value ?? '') === optionValue;
-          return (
-            <EsfOptionCard
-              key={`${props.fieldUuid}-${optionValue}`}
-              type="button"
-              $active={selected}
-              disabled={props.disabled}
-              onClick={() => props.onChange(optionValue)}
-            >
-              {resolveOptionLabel(option, props.language)}
-            </EsfOptionCard>
-          );
-        })}
-      </EsfOptionGrid>,
-    );
-  },
-  checkbox_group: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    const selectedValues = Array.isArray(props.value) ? props.value : [];
-    return renderEsfField(
-      props,
-      <CheckList>
-        {props.options.map((option) => (
-          <EsfCheckboxRow key={option.value}>
-            <input
-              type="checkbox"
-              disabled={props.disabled}
-              checked={selectedValues.includes(option.value)}
-              onChange={(event) => {
-                const next = event.target.checked
-                  ? [...selectedValues, option.value]
-                  : selectedValues.filter((entry) => entry !== option.value);
-                props.onChange(next);
-              }}
-            />
-            <span>{resolveOptionLabel(option, props.language)}</span>
-          </EsfCheckboxRow>
-        ))}
-      </CheckList>,
-    );
-  },
-  checkbox: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderEsfField(
-      props,
-      <EsfCheckboxRow>
-        <input
-          type="checkbox"
-          disabled={props.disabled}
-          checked={Boolean(props.value)}
-          onChange={(event) => props.onChange(event.target.checked)}
-        />
-        <span>{props.prompt}</span>
-      </EsfCheckboxRow>,
-    );
-  },
-};
-
-const ESF_UX_AUDIT_EXAMPLE_FIELD_RENDERERS: Partial<Record<FormFieldKind, ThemeFieldRenderer>> = {
-  ...ESF_FIELD_RENDERERS,
-  text: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderUxAuditField(
-      props,
-      <UxAuditTextInput
-        id={props.fieldUuid}
-        type="text"
-        disabled={props.disabled}
-        value={typeof props.value === 'string' ? props.value : ''}
-        onChange={(event) => props.onChange(event.target.value)}
-      />,
-    );
-  },
-  date: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderUxAuditField(
-      props,
-      <UxAuditTextInput
-        id={props.fieldUuid}
-        type="date"
-        disabled={props.disabled}
-        value={typeof props.value === 'string' ? props.value : ''}
-        onChange={(event) => props.onChange(event.target.value)}
-      />,
-    );
-  },
-  number: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderUxAuditField(
-      props,
-      <UxAuditTextInput
-        id={props.fieldUuid}
-        type="number"
-        disabled={props.disabled}
-        value={typeof props.value === 'string' ? props.value : ''}
-        onChange={(event) => props.onChange(event.target.value)}
-      />,
-    );
-  },
-  tel: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderUxAuditField(
-      props,
-      <UxAuditTextInput
-        id={props.fieldUuid}
-        type="tel"
-        disabled={props.disabled}
-        value={typeof props.value === 'string' ? props.value : ''}
-        onChange={(event) => props.onChange(event.target.value)}
-      />,
-    );
-  },
-  email: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderUxAuditField(
-      props,
-      <UxAuditTextInput
-        id={props.fieldUuid}
-        type="email"
-        disabled={props.disabled}
-        value={typeof props.value === 'string' ? props.value : ''}
-        onChange={(event) => props.onChange(event.target.value)}
-      />,
-    );
-  },
-  textarea: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderUxAuditField(
-      props,
-      <UxAuditTextarea
-        id={props.fieldUuid}
-        disabled={props.disabled}
-        value={typeof props.value === 'string' ? props.value : ''}
-        onChange={(event) => props.onChange(event.target.value)}
-      />,
-    );
-  },
-  select: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderUxAuditField(
-      props,
-      <UxAuditSelect
-        disabled={props.disabled}
-        value={typeof props.value === 'string' ? props.value : ''}
-        onChange={(event) => props.onChange(event.target.value)}
-      >
-        <option value="">Select...</option>
-        {props.options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {resolveOptionLabel(option, props.language)}
-          </option>
-        ))}
-      </UxAuditSelect>,
-    );
-  },
-  radio: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderUxAuditField(
-      props,
-      <EsfOptionGrid>
-        {props.options.map((option) => {
-          const optionValue = option.value;
-          const selected = String(props.value ?? '') === optionValue;
-          return (
-            <UxAuditOptionCard
-              key={`${props.fieldUuid}-${optionValue}`}
-              type="button"
-              $active={selected}
-              disabled={props.disabled}
-              onClick={() => props.onChange(optionValue)}
-            >
-              {resolveOptionLabel(option, props.language)}
-            </UxAuditOptionCard>
-          );
-        })}
-      </EsfOptionGrid>,
-    );
-  },
-  checkbox_group: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    const selectedValues = Array.isArray(props.value) ? props.value : [];
-    return renderUxAuditField(
-      props,
-      <CheckList>
-        {props.options.map((option) => (
-          <UxAuditCheckboxRow key={option.value}>
-            <input
-              type="checkbox"
-              disabled={props.disabled}
-              checked={selectedValues.includes(option.value)}
-              onChange={(event) => {
-                const next = event.target.checked
-                  ? [...selectedValues, option.value]
-                  : selectedValues.filter((entry) => entry !== option.value);
-                props.onChange(next);
-              }}
-            />
-            <span>{resolveOptionLabel(option, props.language)}</span>
-          </UxAuditCheckboxRow>
-        ))}
-      </CheckList>,
-    );
-  },
-  checkbox: (props) => {
-    if (props.preview) {
-      return renderPreviewField(props.label, props.value);
-    }
-    return renderUxAuditField(
-      props,
-      <UxAuditCheckboxRow>
-        <input
-          type="checkbox"
-          disabled={props.disabled}
-          checked={Boolean(props.value)}
-          onChange={(event) => props.onChange(event.target.checked)}
-        />
-        <span>{props.prompt}</span>
-      </UxAuditCheckboxRow>,
-    );
-  },
-};
+const ESF_FIELD_RENDERERS = createThemedFieldRenderers(EsfFieldShell, EsfFieldLabel);
+const ESF_UX_AUDIT_EXAMPLE_FIELD_RENDERERS = createThemedFieldRenderers(
+  UxAuditFieldShell,
+  UxAuditFieldLabel,
+);
 
 const DEFAULT_THEME: FormThemeDefinition = {
   id: 'default',
