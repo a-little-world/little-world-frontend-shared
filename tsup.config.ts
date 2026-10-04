@@ -7,6 +7,13 @@ export default defineConfig({
   splitting: false,
   sourcemap: true,
   clean: true,
-  external: ['react', 'react-dom'],
-  target: 'es2018',
+  external: [
+    'react',
+    'react-dom',
+    'styled-components',
+    '@a-little-world/little-world-design-system',
+    '@a-little-world/little-world-design-system-core',
+  ],
+  treeshake: true,
+  target: 'es2019',
 }) 

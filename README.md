@@ -1,57 +1,109 @@
 # Little World Frontend Shared Library
 
-This repository contains a comprehensive library of shared elements for Little World's frontend applications to consume from. This includes our React Native mobile app and other frontend applications.
+Shared library of components, translations and utilities for Little World's frontend applications.
+It is published publicly to npm as [`@a-little-world/little-world-frontend-shared`](https://www.npmjs.com/package/@a-little-world/little-world-frontend-shared).
+
+## Installation
+
+```bash
+npm install @a-little-world/little-world-frontend-shared
+# or
+pnpm add @a-little-world/little-world-frontend-shared
+```
+
+The package has the following peer dependencies, which the host app must provide:
+
+- `react` / `react-dom` `>=19`
+- `styled-components` `^6.1.18`
+- `@a-little-world/little-world-design-system` `^3.1.2`
+- `@a-little-world/little-world-design-system-core` `^1.17.1`
 
 ## What This Library Contains
 
-This shared library provides the following elements that can be consumed by Little World's frontend applications:
+- **Dynamic form rendering engine** – render, validate and localise forms from a JSON description.
+- **Constants** – shared configuration and field/code mappings.
+- **Translations** – internationalisation (i18n) resources.
 
-### Core Components
-- **Chat Feature**: Complete chat functionality and components
-- **Key Components**: Essential UI components used across applications
+> This library is **not** the design system. The design system (buttons, inputs, design tokens)
+> lives in `@a-little-world/little-world-design-system`; this package composes those primitives
+> into functional, business-specific features.
 
-### Development Utilities
-- **Constants**: Shared configuration and constant values
-- **Translations**: Internationalization (i18n) resources
-- **API Calls**: Centralized API service layer
-- **State Management**: Shared state management utilities
-- **Hooks**: Custom React hooks for common functionality
-- **Types**: TypeScript type definitions
-- **Utils**: Utility functions and helpers
+## Dynamic Form Rendering Engine
 
-## Important Distinction
+`LittleWorldDynamicFormRenderer` renders a form described by a JSON document. It uses the Little
+World design system components directly for every field type (`TextInput`, `DatePicker`,
+`RadioGroup`, `Select`, `TextArea`, `Checkbox`, `CheckboxGroup`), validates values client-side and
+resolves translated labels, prompts, validation messages and option labels.
 
-**This library should not be confused with our design system**, which contains:
-- Core UI elements (buttons, inputs, etc.)
-- Design tokens (colors, typography, spacing)
-- Visual design patterns
+```tsx
+import {
+  LittleWorldDynamicFormRenderer,
+  type LittleWorldFormJson,
+} from '@a-little-world/little-world-frontend-shared';
+import { useState } from 'react';
 
-The design system focuses on visual consistency and basic UI components, while this shared library focuses on functional components, business logic, and application-specific features.
+const documentJson: LittleWorldFormJson = {
+  document: { id: 'demo', name: 'Demo', default_language: 'en', languages: ['en', 'de'] },
+  sections: [
+    {
+      uuid: 'section-1',
+      id: 'personal',
+      title: 'Personal details',
+      fields: [
+        { uuid: 'field-1', id: 'first_name', name: 'first_name', label: 'First name', type: 'text', required: true },
+      ],
+    },
+  ],
+};
 
-## Usage
+export const Example = () => {
+  const [values, setValues] = useState({});
 
-This library is designed to be consumed by Little World's frontend applications, providing a centralized source of truth for shared functionality and components.
+  return (
+    <LittleWorldDynamicFormRenderer
+      documentJson={documentJson}
+      language="en"
+      fieldValues={values}
+      onChangeFieldValue={(fieldUuid, nextValue) =>
+        setValues((current) => ({ ...current, [fieldUuid]: nextValue }))
+      }
+    />
+  );
+};
+```
+
+Additional capabilities:
+
+- **Validation lifecycle hooks** – `onValidationStateChange`, `onFormFieldValidate`,
+  `onFormFieldValidationPassed`, `onFormFieldSectionValidationComplete`.
+- **Themes** – the built-in `default`, `esf` and `esf_ux_audit_example` themes can be replaced or
+  extended with `registerFormTheme` / `createFormTheme`.
+- **Render hooks** – `renderFieldOverlay`, `renderFieldEditActions`, `renderFieldInsertionSlot`,
+  `renderSectionFields` for embedding custom UI.
+- **Imperative handle** – `getFormFieldValue`, `getCurrentFormValues`, `setFormFieldValue`,
+  `revalidateCurrentForm` via `ref`.
+
+See `src/form_rendering_engine/` for the full type surface.
 
 ## Development
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+```bash
+npm install        # install dependencies
+npm run typecheck  # tsc --noEmit
+npm run build      # tsup -> dist/ (cjs + esm + d.ts)
+```
 
-### Available Scripts
+## Releasing
 
-In the project directory, you can run:
+The package is released with [Changesets](https://github.com/changesets/changesets):
 
-#### `npm start`
-Runs the app in development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+1. Add a changeset describing your change:
+   ```bash
+   npm run changeset
+   ```
+2. Merge to `main`. The `Release` workflow opens a "version packages" pull request
+   (or publishes directly if one is already pending).
+3. Merge the version pull request to publish to npm.
 
-#### `npm run build`
-Builds the app for production to the `build` folder.
-
-#### `npm run eject`
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-## Learn More
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+Publishing requires an `NPM_TOKEN` repository secret with publish rights for the
+`@a-little-world` scope. The workflow publishes with `--access public`.
