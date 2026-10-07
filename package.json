@@ -5,6 +5,15 @@
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
   "files": [
     "dist"
   ],
@@ -26,48 +35,32 @@
   ],
   "author": "Little World",
   "license": "MIT",
-  "dependencies": {
-    "react": "18.3.1"
-  },
   "devDependencies": {
-    "@types/node": "^16.18.126",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "react-dom": "18.3.1",
-    "react-scripts": "5.0.1",
-    "typescript": "^4.9.5",
+    "@a-little-world/little-world-design-system": "^3.1.2",
+    "@a-little-world/little-world-design-system-core": "^1.17.1",
     "@changesets/cli": "^2.27.1",
-    "tsup": "^8.0.1"
+    "@types/node": "^16.18.126",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "styled-components": "^6.1.18",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
   },
   "peerDependencies": {
-    "react": ">=16.8.0",
-    "react-dom": ">=16.8.0"
+    "@a-little-world/little-world-design-system": "^3.1.2",
+    "@a-little-world/little-world-design-system-core": "^1.17.1",
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0",
+    "styled-components": "^6.1.18"
   },
   "scripts": {
-    "start": "react-scripts start",
     "build": "tsup",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
     "changeset": "changeset",
     "version": "changeset version",
     "release": "npm run build && changeset publish"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
   }
 }

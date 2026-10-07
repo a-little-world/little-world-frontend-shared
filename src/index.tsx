@@ -1,6 +1,7 @@
 // Core exports
 export { translations } from './translations';
 export * from './constants';
+export * from './form_rendering_engine';
 
 // Component exports (when components are added)
 // export * from './components';
