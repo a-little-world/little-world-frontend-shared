@@ -11,6 +11,11 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     },
+    "./translations": {
+      "types": "./dist/translations.d.ts",
+      "import": "./dist/translations.mjs",
+      "require": "./dist/translations.js"
+    },
     "./package.json": "./package.json"
   },
   "sideEffects": false,
@@ -54,6 +59,23 @@
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0",
     "styled-components": "^6.1.18"
+  },
+  "peerDependenciesMeta": {
+    "@a-little-world/little-world-design-system": {
+      "optional": true
+    },
+    "@a-little-world/little-world-design-system-core": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "styled-components": {
+      "optional": true
+    }
   },
   "scripts": {
     "build": "tsup",
